@@ -148,8 +148,8 @@ gui.ResetOnSpawn = false
 gui.Parent = CoreGui
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 260, 0, 180)
-frame.Position = UDim2.new(0.5, -130, 0.5, -90)
+frame.Size = UDim2.new(0, 280, 0, 320)
+frame.Position = UDim2.new(0.5, -140, 0.5, -160)
 frame.BackgroundColor3 = Color3.fromRGB(12, 12, 18)
 frame.BorderSizePixel = 0
 frame.Parent = gui
@@ -192,20 +192,56 @@ titleConstraint.MaxTextSize = 22
 titleConstraint.MinTextSize = 15
 titleConstraint.Parent = title
 
-local levelDisplay = Instance.new("TextLabel")
-levelDisplay.Size = UDim2.new(1, 0, 0, 25)
-levelDisplay.Position = UDim2.new(0, 0, 0, 75)
-levelDisplay.BackgroundTransparency = 1
-levelDisplay.Text = "Current Level: Loading..."
-levelDisplay.TextColor3 = Color3.fromRGB(255, 255, 255)
-levelDisplay.TextScaled = true
-levelDisplay.Font = Enum.Font.GothamBold
-levelDisplay.TextXAlignment = Enum.TextXAlignment.Center
-levelDisplay.Parent = frame
+local function makeStatRow(name, y, color)
+    local row = Instance.new("Frame")
+    row.Size = UDim2.new(1, -24, 0, 26)
+    row.Position = UDim2.new(0, 12, 0, y)
+    row.BackgroundTransparency = 1
+    row.Parent = frame
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.45, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = name
+    label.TextColor3 = Color3.fromRGB(180, 180, 200)
+    label.TextScaled = true
+    label.Font = Enum.Font.GothamBold
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = row
+
+    local value = Instance.new("TextLabel")
+    value.Size = UDim2.new(0.55, -12, 1, 0)
+    value.Position = UDim2.new(0.45, 12, 0, 0)
+    value.BackgroundTransparency = 1
+    value.Text = "..."
+    value.TextColor3 = color or Color3.fromRGB(255, 255, 255)
+    value.TextScaled = true
+    value.Font = Enum.Font.GothamBold
+    value.TextXAlignment = Enum.TextXAlignment.Right
+    value.Parent = row
+
+    local labelConstraint = Instance.new("UITextSizeConstraint")
+    labelConstraint.MaxTextSize = 14
+    labelConstraint.MinTextSize = 10
+    labelConstraint.Parent = label
+
+    local valueConstraint = Instance.new("UITextSizeConstraint")
+    valueConstraint.MaxTextSize = 14
+    valueConstraint.MinTextSize = 10
+    valueConstraint.Parent = value
+
+    return value
+end
+
+local levelValue    = makeStatRow("Level", 60, Color3.fromRGB(120, 200, 255))
+local expValue      = makeStatRow("EXP", 88, Color3.fromRGB(180, 220, 120))
+local coinsValue    = makeStatRow("Coins", 116, Color3.fromRGB(255, 215, 100))
+local gemsValue     = makeStatRow("Gems", 144, Color3.fromRGB(200, 140, 255))
+local winsValue     = makeStatRow("Wins", 172, Color3.fromRGB(255, 180, 180))
 
 local statusDisplay = Instance.new("TextLabel")
 statusDisplay.Size = UDim2.new(1, 0, 0, 25)
-statusDisplay.Position = UDim2.new(0, 0, 0, 105)
+statusDisplay.Position = UDim2.new(0, 0, 0, 205)
 statusDisplay.BackgroundTransparency = 1
 statusDisplay.Text = "Status: Waiting..."
 statusDisplay.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -216,7 +252,7 @@ statusDisplay.Parent = frame
 
 local toggle = Instance.new("TextButton")
 toggle.Size = UDim2.new(0, 90, 0, 30)
-toggle.Position = UDim2.new(0.5, -45, 1, -40)
+toggle.Position = UDim2.new(0.5, -45, 1, -42)
 toggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
 toggle.Text = "OFF"
 toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -431,14 +467,26 @@ UIS.InputChanged:Connect(function(input)
     end
 end)
 
+local function formatNum(n)
+    n = tonumber(n) or 0
+    if n >= 1e9 then return string.format("%.2fB", n / 1e9) end
+    if n >= 1e6 then return string.format("%.2fM", n / 1e6) end
+    if n >= 1e3 then return string.format("%.2fK", n / 1e3) end
+    return tostring(n)
+end
+
 task.spawn(function()
     while task.wait(1) do
         local level = GetStat("Level")
+        local exp = GetStat("EXP") or GetStat("Xp") or GetStat("Experience")
+        local coins = GetStat("Coins")
+        local gems = GetStat("Gems")
+        local wins = GetStat("Wins")
 
-        if level > 0 then
-            levelDisplay.Text = "Current Level: " .. tostring(level)
-        else
-            levelDisplay.Text = "Current Level: Loading..."
-        end
+        levelValue.Text = level > 0 and tostring(level) or "..."
+        expValue.Text = (exp and exp > 0) and formatNum(exp) or "..."
+        coinsValue.Text = (coins and coins > 0) and formatNum(coins) or "..."
+        gemsValue.Text = (gems and gems > 0) and formatNum(gems) or "..."
+        winsValue.Text = (wins and wins > 0) and tostring(wins) or "..."
     end
 end)
