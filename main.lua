@@ -368,39 +368,56 @@ local function RunAutoProgression()
     if running then return end
     running = true
 
-    WaitUntilLoaded()
-    task.wait(1)
+    print("Auto progression loop started")
 
-    local level = GetStat("Level")
-    local coins = GetStat("Coins")
+    while AutoProgression do
+        WaitUntilLoaded()
+        task.wait(1)
 
-    print("Auto progression started")
-    print("Level:", level)
-    print("Coins:", coins)
+        if not AutoProgression then break end
 
-    if level >= 50 then
-        if coins >= 2250 then
-            BuyTower("Pyromancer")
-            task.wait(1)
-            BuyTower("Hunter")
-            task.wait(1)
+        runningEasy = false
+        runningPizza = false
+        runningHardcore = false
+
+        local level = GetStat("Level")
+        local coins = GetStat("Coins")
+
+        print("Level:", level, "Coins:", coins)
+
+        if level >= 50 then
+            if coins >= 2250 then
+                BuyTower("Pyromancer")
+                task.wait(1)
+                BuyTower("Hunter")
+                task.wait(1)
+            end
+            RunHardcore()
+        elseif level <= 24 then
+            RunEasy()
+        else
+            if coins >= 800 then
+                BuyTower("Assassin")
+                task.wait(1)
+            end
+            RunPizza()
         end
 
-        RunHardcore()
-
-    elseif level <= 24 then
-        RunEasy()
-
-    else
-        if coins >= 800 then
-            BuyTower("Assassin")
+        local leaveTimeout = 0
+        while AutoProgression and game.PlaceId == LOBBY_PLACE_ID and leaveTimeout < 120 do
             task.wait(1)
+            leaveTimeout += 1
         end
 
-        RunPizza()
+        while AutoProgression and game.PlaceId ~= LOBBY_PLACE_ID do
+            task.wait(2)
+        end
+
+        task.wait(3)
     end
 
     running = false
+    print("Auto progression loop stopped")
 end
 
 toggle.MouseButton1Click:Connect(function()
