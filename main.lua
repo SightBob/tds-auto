@@ -18,13 +18,13 @@ local function WaitForLoadingScreen()
     local content = loadingScreen and loadingScreen:FindFirstChild("content")
 
     if content then
-        while content.Visible do
-            content:GetPropertyChangedSignal("Visible"):Wait()
-        end
+        task.spawn(function()
+            while content.Visible do
+                content:GetPropertyChangedSignal("Visible"):Wait()
+            end
+        end)
     end
 end
-
-WaitForLoadingScreen()
 
 local rf = ReplicatedStorage:WaitForChild("RemoteFunction")
 
