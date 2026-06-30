@@ -374,7 +374,7 @@ local function RunEasy()
 
     getgenv().AutoPremium = true
     getgenv().AutoSkip = true
-    getgenv().AutoRejoin = false
+    getgenv().AutoRejoin = true
     getgenv().TimeScaleEnabled = false
     getgenv().TimeScaleValue = 2
 
@@ -400,7 +400,7 @@ local function RunPizza()
 
     getgenv().AutoPremium = true
     getgenv().AutoSkip = true
-    getgenv().AutoRejoin = false
+    getgenv().AutoRejoin = true
 
     local TDS = loadstring(game:HttpGet("https://raw.githubusercontent.com/SightBob/tds-auto/main/Aetherv2.lua"))()
 
@@ -422,7 +422,7 @@ local function RunHardcore()
 
     getgenv().AutoPremium = true
     getgenv().AutoSkip = true
-    getgenv().AutoRejoin = false
+    getgenv().AutoRejoin = true
     getgenv().TimeScaleEnabled = true
     getgenv().TimeScaleValue = 2
 
