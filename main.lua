@@ -688,11 +688,17 @@ local function RunAutoProgression()
 
         if not AutoProgression then break end
 
+        print("[AutoProgression] waiting for match to end...")
         if WaitForRewardsUI() then
+            print("[AutoProgression] rewards UI detected, sending webhook")
             task.wait(2)
             pcall(SendMatchWebhook, currentMode)
 
+            print("[AutoProgression] waiting for rewards UI to clear")
             WaitForRewardsGone()
+            print("[AutoProgression] rewards UI cleared, continuing loop")
+        else
+            print("[AutoProgression] WaitForRewardsUI returned false (toggled off)")
         end
 
         task.wait(3)
