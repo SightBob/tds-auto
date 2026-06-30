@@ -106,11 +106,10 @@ local function SaveSettings()
 end
 
 local function WaitUntilLoaded()
-    print("Waiting for loading screen...")
+    local waited = false
+    local graceDeadline = tick() + 10
 
     while true do
-        task.wait(1)
-
         local attrLoading = plr:GetAttribute("Loading") == true
         local attrTeleporting = plr:GetAttribute("Teleporting") == true
 
@@ -122,10 +121,19 @@ local function WaitUntilLoaded()
         local loading = attrLoading or attrTeleporting or isLoadVisible
 
         if loading then
+            waited = true
             print("Loading...")
+            task.wait(1)
         else
-            print("Loaded!")
-            break
+            if waited or tick() >= graceDeadline then
+                if not waited then
+                    print("No loading screen detected, continuing")
+                else
+                    print("Loaded!")
+                end
+                break
+            end
+            task.wait(1)
         end
     end
 end
