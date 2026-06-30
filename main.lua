@@ -621,6 +621,22 @@ local function RewardsUIVisible()
     return screen and screen:FindFirstChild("RewardsSection")
 end
 
+local function WaitForRewardsUI()
+    while AutoProgression do
+        if RewardsUIVisible() then return true end
+        task.wait(1)
+    end
+    return false
+end
+
+local function WaitForRewardsGone()
+    while AutoProgression do
+        if not RewardsUIVisible() then return true end
+        task.wait(1)
+    end
+    return false
+end
+
 local function RunAutoProgression()
     if running then return end
     running = true
@@ -670,31 +686,13 @@ local function RunAutoProgression()
             leaveTimeout += 1
         end
 
-        local rewardsSeen = false
-        local rewardsCleared = false
-        local lobbyTimeout = 0
+        if not AutoProgression then break end
 
-        while AutoProgression and game.PlaceId ~= LOBBY_PLACE_ID and lobbyTimeout < 240 do
-            if RewardsUIVisible() then
-                if not rewardsSeen then
-                    task.wait(2)
-                    pcall(SendMatchWebhook, currentMode)
-                    rewardsSeen = true
-                end
-            elseif rewardsSeen then
-                rewardsCleared = true
-                break
-            end
-            task.wait(1)
-            lobbyTimeout += 1
-        end
+        if WaitForRewardsUI() then
+            task.wait(2)
+            pcall(SendMatchWebhook, currentMode)
 
-        if rewardsSeen and not rewardsCleared and AutoProgression then
-            local waitClear = 0
-            while AutoProgression and RewardsUIVisible() and waitClear < 30 do
-                task.wait(1)
-                waitClear += 1
-            end
+            WaitForRewardsGone()
         end
 
         task.wait(3)
