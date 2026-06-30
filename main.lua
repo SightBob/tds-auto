@@ -662,27 +662,28 @@ local function RunAutoProgression()
             leaveTimeout += 1
         end
 
-        local wasInMatch = false
-        local webhookSent = false
+        local matchEndedHere = false
         while AutoProgression and game.PlaceId ~= LOBBY_PLACE_ID do
-            wasInMatch = true
-            if not webhookSent then
-                local root = PlayerGui:FindFirstChild("ReactGameNewRewards")
-                local frame = root and root:FindFirstChild("Frame")
-                local gameOver = frame and frame:FindFirstChild("gameOver")
-                local screen = gameOver and gameOver:FindFirstChild("RewardsScreen")
-                if screen and screen:FindFirstChild("RewardsSection") then
-                    task.wait(1.5)
-                    pcall(SendMatchWebhook, currentMode)
-                    webhookSent = true
-                end
+            local root = PlayerGui:FindFirstChild("ReactGameNewRewards")
+            local frame = root and root:FindFirstChild("Frame")
+            local gameOver = frame and frame:FindFirstChild("gameOver")
+            local screen = gameOver and gameOver:FindFirstChild("RewardsScreen")
+            if screen and screen:FindFirstChild("RewardsSection") then
+                matchEndedHere = true
+                break
             end
             task.wait(2)
         end
 
-        if wasInMatch and AutoProgression and not webhookSent then
+        if matchEndedHere and AutoProgression then
             task.wait(2)
             pcall(SendMatchWebhook, currentMode)
+
+            local lobbyTimeout = 0
+            while AutoProgression and game.PlaceId ~= LOBBY_PLACE_ID and lobbyTimeout < 90 do
+                task.wait(1)
+                lobbyTimeout += 1
+            end
         end
 
         task.wait(3)
