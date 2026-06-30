@@ -651,7 +651,12 @@ local function RunAutoProgression()
 
     print("Auto progression loop started")
 
+    local loopIter = 0
+
     while AutoProgression do
+        loopIter += 1
+        print("[AutoProgression] === loop iteration", loopIter, "===")
+
         WaitUntilLoaded()
         task.wait(1)
 
