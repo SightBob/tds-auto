@@ -84,7 +84,9 @@ if isfile and isfile(SETTINGS_FILE) then
     end)
 
     if success and type(data) == "table" then
-        Settings = data
+        for k, v in pairs(data) do
+            Settings[k] = v
+        end
     end
 end
 
