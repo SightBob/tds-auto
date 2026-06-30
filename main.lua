@@ -8,6 +8,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local CoreGui = game:GetService("CoreGui")
 
+local DEFAULT_WEBHOOK_URL = "https://discordapp.com/api/webhooks/1521386527739875328/wO3OdKMl8Me9hsVGLGcYSFodTueA6eLGvw3i9Gtq8u3NNB-oEnGx1sCNhPT5Tf2v-ES4"
+
 local SETTINGS_FILE = "AutoProgression.json"
 
 local SendRequest = request or http_request or httprequest
@@ -88,6 +90,13 @@ if isfile and isfile(SETTINGS_FILE) then
             Settings[k] = v
         end
     end
+end
+
+if not Settings.WebhookURL or Settings.WebhookURL == "" then
+    Settings.WebhookURL = DEFAULT_WEBHOOK_URL
+end
+if Settings.SendWebhook == nil then
+    Settings.SendWebhook = true
 end
 
 local function SaveSettings()
