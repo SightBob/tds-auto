@@ -613,6 +613,14 @@ local function SendMatchWebhook(modeLabel)
     end)
 end
 
+local function RewardsUIVisible()
+    local root = PlayerGui:FindFirstChild("ReactGameNewRewards")
+    local frame = root and root:FindFirstChild("Frame")
+    local gameOver = frame and frame:FindFirstChild("gameOver")
+    local screen = gameOver and gameOver:FindFirstChild("RewardsScreen")
+    return screen and screen:FindFirstChild("RewardsSection")
+end
+
 local function RunAutoProgression()
     if running then return end
     running = true
@@ -662,27 +670,30 @@ local function RunAutoProgression()
             leaveTimeout += 1
         end
 
-        local matchEndedHere = false
-        while AutoProgression and game.PlaceId ~= LOBBY_PLACE_ID do
-            local root = PlayerGui:FindFirstChild("ReactGameNewRewards")
-            local frame = root and root:FindFirstChild("Frame")
-            local gameOver = frame and frame:FindFirstChild("gameOver")
-            local screen = gameOver and gameOver:FindFirstChild("RewardsScreen")
-            if screen and screen:FindFirstChild("RewardsSection") then
-                matchEndedHere = true
+        local rewardsSeen = false
+        local rewardsCleared = false
+        local lobbyTimeout = 0
+
+        while AutoProgression and game.PlaceId ~= LOBBY_PLACE_ID and lobbyTimeout < 240 do
+            if RewardsUIVisible() then
+                if not rewardsSeen then
+                    task.wait(2)
+                    pcall(SendMatchWebhook, currentMode)
+                    rewardsSeen = true
+                end
+            elseif rewardsSeen then
+                rewardsCleared = true
                 break
             end
-            task.wait(2)
+            task.wait(1)
+            lobbyTimeout += 1
         end
 
-        if matchEndedHere and AutoProgression then
-            task.wait(2)
-            pcall(SendMatchWebhook, currentMode)
-
-            local lobbyTimeout = 0
-            while AutoProgression and game.PlaceId ~= LOBBY_PLACE_ID and lobbyTimeout < 90 do
+        if rewardsSeen and not rewardsCleared and AutoProgression then
+            local waitClear = 0
+            while AutoProgression and RewardsUIVisible() and waitClear < 30 do
                 task.wait(1)
-                lobbyTimeout += 1
+                waitClear += 1
             end
         end
 
