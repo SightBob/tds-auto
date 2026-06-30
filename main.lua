@@ -10,6 +10,8 @@ local CoreGui = game:GetService("CoreGui")
 
 local SETTINGS_FILE = "AutoProgression.json"
 
+local SendRequest = request or http_request or httprequest
+
 local plr = Players.LocalPlayer or Players.PlayerAdded:Wait()
 local PlayerGui = plr:WaitForChild("PlayerGui")
 
@@ -71,7 +73,9 @@ end
 AntiStuck()
 
 local Settings = {
-    AutoProgression = false
+    AutoProgression = false,
+    SendWebhook = true,
+    WebhookURL = "https://discordapp.com/api/webhooks/1521386527739875328/wO3OdKMl8Me9hsVGLGcYSFodTueA6eLGvw3i9Gtq8u3NNB-oEnGx1sCNhPT5Tf2v-ES4"
 }
 
 if isfile and isfile(SETTINGS_FILE) then
@@ -251,8 +255,8 @@ statusDisplay.TextXAlignment = Enum.TextXAlignment.Center
 statusDisplay.Parent = frame
 
 local toggle = Instance.new("TextButton")
-toggle.Size = UDim2.new(0, 90, 0, 30)
-toggle.Position = UDim2.new(0.5, -45, 1, -42)
+toggle.Size = UDim2.new(0, 80, 0, 30)
+toggle.Position = UDim2.new(0, 12, 1, -42)
 toggle.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
 toggle.Text = "OFF"
 toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -261,6 +265,62 @@ toggle.Font = Enum.Font.GothamBold
 toggle.Parent = frame
 
 Instance.new("UICorner", toggle).CornerRadius = UDim.new(0, 10)
+
+local testWebhookBtn = Instance.new("TextButton")
+testWebhookBtn.Size = UDim2.new(0, 80, 0, 30)
+testWebhookBtn.Position = UDim2.new(1, -92, 1, -42)
+testWebhookBtn.BackgroundColor3 = Color3.fromRGB(70, 90, 170)
+testWebhookBtn.Text = "Test Hook"
+testWebhookBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+testWebhookBtn.TextScaled = true
+testWebhookBtn.Font = Enum.Font.GothamBold
+testWebhookBtn.Parent = frame
+
+Instance.new("UICorner", testWebhookBtn).CornerRadius = UDim.new(0, 10)
+
+testWebhookBtn.MouseButton1Click:Connect(function()
+    if not SendRequest then
+        statusDisplay.Text = "Status: No http function"
+        return
+    end
+
+    if not Settings.WebhookURL or Settings.WebhookURL == "" then
+        statusDisplay.Text = "Status: Webhook URL empty"
+        return
+    end
+
+    statusDisplay.Text = "Status: Sending webhook..."
+
+    task.spawn(function()
+        local payload = HttpService:JSONEncode({
+            username = "TDS AutoProgression",
+            content = "Webhook test from " .. plr.Name
+        })
+
+        local ok, res = pcall(function()
+            return SendRequest({
+                Url = Settings.WebhookURL,
+                Method = "POST",
+                Headers = { ["Content-Type"] = "application/json" },
+                Body = payload
+            })
+        end)
+
+        local status
+        pcall(function()
+            status = res and res.StatusCode
+        end)
+
+        if ok and status and status >= 200 and status < 300 then
+            statusDisplay.Text = "Status: Webhook OK (" .. status .. ")"
+        else
+            statusDisplay.Text = "Status: Webhook fail (" .. tostring(status) .. ")"
+        end
+
+        task.wait(3)
+        statusDisplay.Text = "Status: Waiting..."
+    end)
+end)
 
 local AutoProgression = Settings.AutoProgression
 local running = false
@@ -364,6 +424,184 @@ local function RunHardcore()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/SightBob/tds-auto/main/hardcore.lua"))()
 end
 
+local ItemNames = {
+    ["17447507910"] = "Timescale Ticket(s)",
+    ["17438486690"] = "Range Flag(s)",
+    ["17438486138"] = "Damage Flag(s)",
+    ["17438487774"] = "Cooldown Flag(s)",
+    ["17429537022"] = "Blizzard(s)",
+    ["17448596749"] = "Napalm Strike(s)",
+    ["18493073533"] = "Spin Ticket(s)",
+    ["17429548305"] = "Supply Drop(s)",
+    ["18443277308"] = "Low Grade Consumable Crate(s)",
+    ["136180382135048"] = "Santa Radio(s)",
+    ["18443277106"] = "Mid Grade Consumable Crate(s)",
+    ["18443277591"] = "High Grade Consumable Crate(s)",
+    ["132155797622156"] = "Christmas Tree(s)",
+    ["124065875200929"] = "Fruit Cake(s)",
+    ["17429541513"] = "Barricade(s)",
+    ["110415073436604"] = "Holy Hand Grenade(s)",
+    ["17429533728"] = "Frag Grenade(s)",
+    ["17437703262"] = "Molotov(s)",
+    ["139414922355803"] = "Present Clusters(s)"
+}
+
+local function WaitForRewardsUI(timeout)
+    local deadline = tick() + (timeout or 90)
+    while tick() < deadline do
+        local root = PlayerGui:FindFirstChild("ReactGameNewRewards")
+        local frame = root and root:FindFirstChild("Frame")
+        local gameOver = frame and frame:FindFirstChild("gameOver")
+        local screen = gameOver and gameOver:FindFirstChild("RewardsScreen")
+        local section = screen and screen:FindFirstChild("RewardsSection")
+        if section then return screen end
+        task.wait(0.5)
+    end
+    return nil
+end
+
+local function ScrapeMatchResult(modeLabel)
+    local results = {
+        Mode = modeLabel or "Unknown",
+        Coins = 0, Gems = 0, XP = 0, Wave = 0, Level = 0,
+        Time = "00:00", Status = "UNKNOWN", Others = {}
+    }
+
+    local screen = WaitForRewardsUI(90)
+    if not screen then return results end
+
+    local stats = screen:FindFirstChild("gameStats")
+    local statsList = stats and stats:FindFirstChild("stats")
+    if statsList then
+        for _, f in ipairs(statsList:GetChildren()) do
+            local l1 = f:FindFirstChild("textLabel")
+            local l2 = f:FindFirstChild("textLabel2")
+            if l1 and l2 and l1.Text:find("Time Completed:") then
+                results.Time = l2.Text
+                break
+            end
+        end
+    end
+
+    local banner = screen:FindFirstChild("RewardBanner")
+    if banner and banner:FindFirstChild("textLabel") then
+        local txt = banner.textLabel.Text:upper()
+        if txt:find("TRIUMPH") then results.Status = "WIN"
+        elseif txt:find("LOST") or txt:find("DEFEAT") then results.Status = "LOSS" end
+    end
+
+    local lvlObj = plr:FindFirstChild("Level")
+    if lvlObj then results.Level = tonumber(lvlObj.Value) or 0 end
+
+    local topGui = PlayerGui:FindFirstChild("ReactGameTopGameDisplay")
+    local waveLbl = topGui and topGui:FindFirstChild("Frame")
+        and topGui.Frame:FindFirstChild("wave")
+        and topGui.Frame.wave:FindFirstChild("container")
+        and topGui.Frame.wave.container:FindFirstChild("value")
+    if waveLbl then
+        local n = waveLbl.Text:match("^(%d+)")
+        if n then results.Wave = tonumber(n) or 0 end
+    end
+
+    local section = screen:FindFirstChild("RewardsSection")
+    if section then
+        for _, item in ipairs(section:GetChildren()) do
+            if tonumber(item.Name) then
+                local iconId = "0"
+                local img = item:FindFirstChildWhichIsA("ImageLabel", true)
+                if img then iconId = img.Image:match("%d+") or "0" end
+                for _, c in ipairs(item:GetDescendants()) do
+                    if c:IsA("TextLabel") then
+                        local t = c.Text
+                        local amt = tonumber(t:match("(%d+)")) or 0
+                        if t:find("Coins") then results.Coins = amt
+                        elseif t:find("Gems") then results.Gems = amt
+                        elseif t:find("XP") then results.XP = amt
+                        elseif t:lower():find("x%d+") then
+                            local name = ItemNames[iconId] or ("Unknown Item (" .. iconId .. ")")
+                            table.insert(results.Others, {Amount = t:match("x%d+"), Name = name})
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return results
+end
+
+local SessionCoins, SessionGems = 0, 0
+local MatchesPlayed = 0
+
+local function SendMatchWebhook(modeLabel)
+    if not Settings.SendWebhook or not Settings.WebhookURL or Settings.WebhookURL == "" then
+        return
+    end
+    if not SendRequest then return end
+
+    local match = ScrapeMatchResult(modeLabel)
+    MatchesPlayed += 1
+    SessionCoins += match.Coins
+    SessionGems += match.Gems
+
+    local bonus = ""
+    if #match.Others > 0 then
+        for _, r in ipairs(match.Others) do
+            bonus = bonus .. "🎁 **" .. r.Amount .. " " .. r.Name .. "**\n"
+        end
+    else
+        bonus = "_No bonus rewards found._"
+    end
+
+    local payload = {
+        username = "TDS AutoProgression",
+        embeds = {{
+            title = (match.Status == "WIN" and "🏆 TRIUMPH" or "💀 DEFEAT") .. " — " .. match.Mode,
+            color = match.Status == "WIN" and 0x2ecc71 or 0xe74c3c,
+            description =
+                "### 📋 Match Overview\n" ..
+                "> **Status:** `" .. match.Status .. "`\n" ..
+                "> **Mode:** `" .. match.Mode .. "`\n" ..
+                "> **Time:** `" .. match.Time .. "`\n" ..
+                "> **Current Level:** `" .. match.Level .. "`\n" ..
+                "> **Wave:** `" .. match.Wave .. "`\n",
+            fields = {
+                {
+                    name = "✨ Rewards",
+                    value = "```ansi\n" ..
+                            "[2;33mCoins:[0m +" .. match.Coins .. "\n" ..
+                            "[2;34mGems: [0m +" .. match.Gems .. "\n" ..
+                            "[2;32mXP:   [0m +" .. match.XP .. "```",
+                    inline = false
+                },
+                {
+                    name = "🎁 Bonus Items",
+                    value = bonus,
+                    inline = true
+                },
+                {
+                    name = "📊 Session Totals",
+                    value = "```py\n# Total\nMatches: " .. MatchesPlayed ..
+                            "\nCoins: " .. SessionCoins ..
+                            "\nGems:  " .. SessionGems .. "```",
+                    inline = true
+                }
+            },
+            footer = { text = "Logged for " .. plr.Name .. " • TDS AutoProgression" },
+            timestamp = DateTime.now():ToIsoDate()
+        }}
+    }
+
+    pcall(function()
+        SendRequest({
+            Url = Settings.WebhookURL,
+            Method = "POST",
+            Headers = { ["Content-Type"] = "application/json" },
+            Body = HttpService:JSONEncode(payload)
+        })
+    end)
+end
+
 local function RunAutoProgression()
     if running then return end
     running = true
@@ -385,6 +623,7 @@ local function RunAutoProgression()
 
         print("Level:", level, "Coins:", coins)
 
+        local currentMode = "Unknown"
         if level >= 50 then
             if coins >= 2250 then
                 BuyTower("Pyromancer")
@@ -392,14 +631,17 @@ local function RunAutoProgression()
                 BuyTower("Hunter")
                 task.wait(1)
             end
+            currentMode = "Hardcore"
             RunHardcore()
         elseif level <= 24 then
+            currentMode = "Easy"
             RunEasy()
         else
             if coins >= 800 then
                 BuyTower("Assassin")
                 task.wait(1)
             end
+            currentMode = "PizzaParty"
             RunPizza()
         end
 
@@ -409,8 +651,27 @@ local function RunAutoProgression()
             leaveTimeout += 1
         end
 
+        local wasInMatch = false
+        local webhookSent = false
         while AutoProgression and game.PlaceId ~= LOBBY_PLACE_ID do
+            wasInMatch = true
+            if not webhookSent then
+                local root = PlayerGui:FindFirstChild("ReactGameNewRewards")
+                local frame = root and root:FindFirstChild("Frame")
+                local gameOver = frame and frame:FindFirstChild("gameOver")
+                local screen = gameOver and gameOver:FindFirstChild("RewardsScreen")
+                if screen and screen:FindFirstChild("RewardsSection") then
+                    task.wait(1.5)
+                    pcall(SendMatchWebhook, currentMode)
+                    webhookSent = true
+                end
+            end
             task.wait(2)
+        end
+
+        if wasInMatch and AutoProgression and not webhookSent then
+            task.wait(2)
+            pcall(SendMatchWebhook, currentMode)
         end
 
         task.wait(3)
