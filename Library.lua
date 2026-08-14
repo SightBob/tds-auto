@@ -240,8 +240,8 @@ AutoSkip = true,
     AutoMilitary = false,
     Frost = false,
     Fallen = false,
-    Easy = false,
-    AntiLag = false,
+Easy = false,
+    AntiLag = true,
     Disable3DRendering = false,
     AutoPickups = false,
     ClaimRewards = false,
@@ -456,6 +456,9 @@ SetSetting("SendWebhook", true)
 
 Globals.WebhookURL = "https://discordapp.com/api/webhooks/1536375409581498440/48y_2N3lDxM4lZFmjYwQAx81zGsfVlnMBtMB0efas5gCPhuY2ynN8oFq0gK6M_iT8PLw"
 SetSetting("WebhookURL", Globals.WebhookURL)
+
+Globals.AntiLag = true
+SetSetting("AntiLag", true)
 
 local isTagChangerRunning = false
 local tagChangerConn = nil
