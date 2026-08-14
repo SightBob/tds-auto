@@ -1171,7 +1171,7 @@ local function StartEasyMode()
 
         while Globals.Easy and content == nil do
             local success, res = pcall(function() 
-                return game:HttpGet("https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Strategies/Easy.lua") 
+                return game:HttpGet("https://raw.githubusercontent.com/SightBob/tds-auto/refs/heads/main/Strategies/Easy.lua") 
             end)
 
             if success and type(res) == "string" then
@@ -1308,7 +1308,7 @@ local function LoadAutoProgress()
     return api
 end
 -- // ui
-local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Sources/UI.lua"))()
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/SightBob/tds-auto/refs/heads/main/Sources/UI.lua"))()
 
 Window = Library:Window({
     Title = "Aether Hub",
@@ -1357,7 +1357,7 @@ local Automation = Window:Tab({Title = "Automation", Icon = "bot"}) do
             end
             if v and GameState == "GAME" then
                 if #executed_actions > 0 then
-                    local content = "local TDS = shared.TDSTable or loadstring(game:HttpGet(\"https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Library.lua\"))()\n\n"
+                    local content = "local TDS = shared.TDSTable or loadstring(game:HttpGet(\"https://raw.githubusercontent.com/SightBob/tds-auto/refs/heads/main/Library.lua\"))()\n\n"
                     content = content .. table.concat(executed_actions, "\n")
                     writefile("ADS_LastStrat.lua", content)
                 end
@@ -1379,7 +1379,7 @@ local Automation = Window:Tab({Title = "Automation", Icon = "bot"}) do
             end
             if v and GameState == "GAME" then
                 if #executed_actions > 0 then
-                    local content = "local TDS = shared.TDSTable or loadstring(game:HttpGet(\"https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Library.lua\"))()\n\n"
+                    local content = "local TDS = shared.TDSTable or loadstring(game:HttpGet(\"https://raw.githubusercontent.com/SightBob/tds-auto/refs/heads/main/Library.lua\"))()\n\n"
                     content = content .. table.concat(executed_actions, "\n")
                     writefile("ADS_LastStrat.lua", content)
                 end
@@ -2555,7 +2555,7 @@ local Strategies = Window:Tab({Title = "Strategies", Icon = "clipboard-list"}) d
 
             if v then
                 task.spawn(function()
-                    local url = "https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Strategies/Fallen.lua"
+                    local url = "https://raw.githubusercontent.com/SightBob/tds-auto/refs/heads/main/Strategies/Fallen.lua"
                     local content = game:HttpGet(url)
 
                     while not (TDS and TDS.Loadout) do
@@ -2581,7 +2581,7 @@ local Strategies = Window:Tab({Title = "Strategies", Icon = "clipboard-list"}) d
 
             if v then
                 task.spawn(function()
-                    local url = "https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Strategies/Intermediate.lua"
+                    local url = "https://raw.githubusercontent.com/SightBob/tds-auto/refs/heads/main/Strategies/Intermediate.lua"
                     local content = game:HttpGet(url)
 
                     while not (TDS and TDS.Loadout) do
@@ -2607,7 +2607,7 @@ local Strategies = Window:Tab({Title = "Strategies", Icon = "clipboard-list"}) d
 
             if v then
                 task.spawn(function()
-                    local url = "https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Strategies/Casual.lua"
+                    local url = "https://raw.githubusercontent.com/SightBob/tds-auto/refs/heads/main/Strategies/Casual.lua"
                     local content = game:HttpGet(url)
 
                     while not (TDS and TDS.Loadout) do
@@ -2633,7 +2633,7 @@ local Strategies = Window:Tab({Title = "Strategies", Icon = "clipboard-list"}) d
 
             if v then
                 task.spawn(function()
-                    local url = "https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Strategies/Easy.lua"
+                    local url = "https://raw.githubusercontent.com/SightBob/tds-auto/refs/heads/main/Strategies/Easy.lua"
                     local content = game:HttpGet(url)
 
                     while not (TDS and TDS.Loadout) do
@@ -2660,7 +2660,7 @@ local Strategies = Window:Tab({Title = "Strategies", Icon = "clipboard-list"}) d
 
             if v then
                 task.spawn(function()
-                    local url = "https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Strategies/Hardcore.lua"
+                    local url = "https://raw.githubusercontent.com/SightBob/tds-auto/refs/heads/main/Strategies/Hardcore.lua"
                     local content = game:HttpGet(url)
 
                     while not (TDS and TDS.Loadout) do
@@ -2690,7 +2690,7 @@ end
 
 Window:Line()
 
-local RecorderInit = loadstring(game:HttpGet("https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Sources/Recorder.lua"))()
+local RecorderInit = loadstring(game:HttpGet("https://raw.githubusercontent.com/SightBob/tds-auto/refs/heads/main/Sources/Recorder.lua"))()
 RecorderInit({
     Window = Window,
     ReplicatedStorage = ReplicatedStorage,
@@ -4171,7 +4171,7 @@ local function strategyRecordingSetup()
                     local actionString = string.format("TDS:%s(%s)", methodName, table.concat(stringifiedArguments, ", "))
                     table.insert(executed_actions, actionString)
                     
-                    local strategyFileContent = "local TDS = shared.TDSTable or loadstring(game:HttpGet(\"https://raw.githubusercontent.com/DuxiiT/auto-strat/refs/heads/main/Library.lua\"))()\n\n"
+                    local strategyFileContent = "local TDS = shared.TDSTable or loadstring(game:HttpGet(\"https://raw.githubusercontent.com/SightBob/tds-auto/refs/heads/main/Library.lua\"))()\n\n"
                     strategyFileContent = strategyFileContent .. table.concat(executed_actions, "\n")
                     writefile("ADS_LastStrat.lua", strategyFileContent)
                 end
