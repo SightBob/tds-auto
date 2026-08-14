@@ -244,8 +244,8 @@ Easy = false,
     AntiLag = true,
     Disable3DRendering = false,
     AutoPickups = false,
-    ClaimRewards = false,
-SendWebhook = true,
+    ClaimRewards = true,
+    SendWebhook = true,
     NoRecoil = false,
     SellFarmsWave = 1,
     WebhookURL = "https://discordapp.com/api/webhooks/1536375409581498440/48y_2N3lDxM4lZFmjYwQAx81zGsfVlnMBtMB0efas5gCPhuY2ynN8oFq0gK6M_iT8PLw",
@@ -459,6 +459,9 @@ SetSetting("WebhookURL", Globals.WebhookURL)
 
 Globals.AntiLag = true
 SetSetting("AntiLag", true)
+
+Globals.ClaimRewards = true
+SetSetting("ClaimRewards", true)
 
 local isTagChangerRunning = false
 local tagChangerConn = nil
