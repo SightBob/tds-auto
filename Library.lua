@@ -114,7 +114,7 @@ local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local mouse = LocalPlayer:GetMouse()
 local RemoteFunc = ReplicatedStorage:WaitForChild("RemoteFunction")
 local RemoteEvent = ReplicatedStorage:WaitForChild("RemoteEvent")
-local FileName = "ADS_Config.json"
+local FileName = "ADS_Config_" .. tostring(LocalPlayer.UserId) .. ".json"
 local Logger
 local StartBackToLobby
 local platform = UserInputService:GetPlatform()
@@ -217,7 +217,7 @@ local DefaultSettings = {
     PathVisuals = false,
     MilitaryPath = false,
     MercenaryPath = false,
-    AutoSkip = true,
+AutoSkip = true,
     AutoOpenCrates = false,
     SelectedCrate = "All",
     AutoReady = true,
@@ -245,7 +245,7 @@ local DefaultSettings = {
     Disable3DRendering = false,
     AutoPickups = false,
     ClaimRewards = false,
-    SendWebhook = true,
+SendWebhook = true,
     NoRecoil = false,
     SellFarmsWave = 1,
     WebhookURL = "https://discordapp.com/api/webhooks/1536375409581498440/48y_2N3lDxM4lZFmjYwQAx81zGsfVlnMBtMB0efas5gCPhuY2ynN8oFq0gK6M_iT8PLw",
@@ -1256,7 +1256,7 @@ local function GetAutoProgressLevel()
     return 0
 end
 
-local AUTO_PROGRESS_URL = ""
+local AUTO_PROGRESS_URL = "https://api.jnkie.com/api/v1/luascripts/public/b6f94e11cee9f4f5d02f2d41490f2370afdbed8b345834b3b383decb2c386acc/download"
 local AutoProgressLoaded = false
 
 local function LoadAutoProgress()
@@ -1293,6 +1293,10 @@ local function LoadAutoProgress()
     end
 
     if type(api) ~= "table" then
+    api = shared.AutoProgress
+    end
+
+    if type(api) ~= "table" then
         warn("[AUTO PROGRESS] Module did not return API")
         return nil
     end
@@ -1300,6 +1304,7 @@ local function LoadAutoProgress()
     shared.AutoProgress = api
     AutoProgressLoaded = true
 
+    shared.AutoProgress = api
     return api
 end
 -- // ui
@@ -1501,7 +1506,7 @@ local Automation = Window:Tab({Title = "Automation", Icon = "bot"}) do
         Title = "Auto Farm Until Gatling",
         Desc = AUTO_PROGRESS_URL == ""
             and "Coming Soon"
-            or "Automatically progresses the account until Gatling Gun is unlocked",
+            or "Automatically progresses the account until Gatling Gun is unlocked (USING LOSE STRAT)",
         Value = AutoProgressCompleted
             and false
             or (AUTO_PROGRESS_URL ~= "" and Globals.AutoFarmUntilGatling or false),
@@ -5013,3 +5018,4 @@ end
 MissionsUIFix()
 
 return TDS
+
