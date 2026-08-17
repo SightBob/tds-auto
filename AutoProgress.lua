@@ -270,6 +270,7 @@ LoadConfig()
 local SAVED_KEY = "34817160-15af-4d0f-87e2-434a30dd8136"
 
 if getgenv then
+    getgenv().SCRIPT_KEY = SAVED_KEY
     getgenv().Key = SAVED_KEY
     getgenv().key = SAVED_KEY
     getgenv().JNKIE_KEY = SAVED_KEY
