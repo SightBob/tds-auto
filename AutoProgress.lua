@@ -278,9 +278,16 @@ if getgenv then
 end
 
 script_key = SAVED_KEY
+SCRIPT_KEY = SAVED_KEY
 shared.Key = SAVED_KEY
 shared.key = SAVED_KEY
 shared.script_key = SAVED_KEY
+
+pcall(function()
+    if type(writefile) == "function" then
+        writefile("verified_key.txt", SAVED_KEY)
+    end
+end)
 
 local Library =
     RequireSharedOrUrl(
