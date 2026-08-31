@@ -1091,7 +1091,7 @@ local CrateList = {
     "Halloween", "Jolly", "Lunar", "Lovestruck", "UglyCrate", "Coin Crate", 
     "Banned", "Christmas 2025", "Showtime", "Valentines 2026", "Shamrock",
     "Low Grade", "Mid Grade", "High Grade",
-    "Patriotic", "Scuba Ops", "Beach", "Void"
+    "Patriotic", "Scuba Ops", "Beach26", "Void"
 }
 
 local AutoOpenRunning = false
