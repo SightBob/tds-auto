@@ -262,7 +262,9 @@ local DefaultSettings = {
     ProgressionWebhookURL = "",
     SendProgressionWebhook = false,
     AutoProgressionStatus = "Status: waiting... | Mode: None",
-    AutoMedic = false
+    AutoMedic = false,
+    AutoBuyCrates = false,
+    BuyCrateAmount = 10
 }
 
 local TimeScaleValues = {0.5, 1, 1.5, 2}
@@ -1095,6 +1097,117 @@ local CrateList = {
 }
 
 local AutoOpenRunning = false
+local AutoBuyCratesRunning = false
+
+-- // list of remote patterns ที่ใช้ซื้อกล่อง (ลองตามลำดับ)
+local BuyCrateRemotePatterns = {
+    {"Shop", "BuyCrate"},
+    {"Shop", "PurchaseCrate"},
+    {"Shop", "Buy"},
+    {"Inventory", "BuyCrate"},
+    {"Inventory", "Purchase"},
+    {"Crates", "Buy"},
+    {"CrateShop", "Buy"}
+}
+
+local function TryBuyCrateRemote(crateName, amount)
+    for _, pattern in ipairs(BuyCrateRemotePatterns) do
+        local ok, res = pcall(function()
+            return RemoteFunc:InvokeServer(
+                pattern[1], pattern[2], crateName, amount
+            )
+        end)
+        if ok and CheckResOk(res) then
+            return true, pattern[1] .. "/" .. pattern[2]
+        end
+    end
+    return false, nil
+end
+
+local function TryBuyCrateClick(crateName, amount)
+    local shopGui = PlayerGui:FindFirstChild("ReactShop") 
+        or PlayerGui:FindFirstChild("ShopGui")
+        or PlayerGui:FindFirstChild("CrateShop")
+
+    if not shopGui then
+        return false
+    end
+
+    local purchased = 0
+    for i = 1, amount do
+        local buyButton = shopGui:FindFirstChildWhichIsA("TextButton", true)
+        if not buyButton then break end
+
+        local ok = pcall(function()
+            for _, conn in ipairs(getconnections(buyButton.MouseButton1Click)) do
+                conn:Fire()
+            end
+        end)
+        if not ok then break end
+
+        purchased = purchased + 1
+        task.wait(0.3)
+    end
+
+    return purchased >= 1
+end
+
+local function StartAutoBuyCrates()
+    if AutoBuyCratesRunning or not Globals.AutoBuyCrates then return end
+    AutoBuyCratesRunning = true
+
+    local amount = math.max(1, tonumber(Globals.BuyCrateAmount) or 10)
+    local target = Globals.SelectedCrate
+
+    task.spawn(function()
+        if target == "All" or not target then
+            Window:Notify({
+                Title = "ADS",
+                Desc = "Please select a specific crate to buy (not 'All').",
+                Time = 3,
+                Type = "error"
+            })
+            AutoBuyCratesRunning = false
+            Globals.AutoBuyCrates = false
+            return
+        end
+
+        Window:Notify({
+            Title = "ADS",
+            Desc = "Buying " .. amount .. "x " .. target .. "...",
+            Time = 3,
+            Type = "normal"
+        })
+
+        local success, usedRemote = TryBuyCrateRemote(target, amount)
+        local method = "remote"
+
+        if not success then
+            Logger:Log("Remote buy failed, trying GUI click...")
+            success = TryBuyCrateClick(target, amount)
+            method = "gui"
+        end
+
+        if success then
+            Window:Notify({
+                Title = "ADS",
+                Desc = "Bought " .. amount .. "x " .. target .. " (" .. method .. ": " .. (usedRemote or "GUI") .. ")",
+                Time = 5,
+                Type = "normal"
+            })
+        else
+            Window:Notify({
+                Title = "ADS",
+                Desc = "Failed to buy " .. target .. ". Try changing Selected Crate or amount.",
+                Time = 5,
+                Type = "error"
+            })
+        end
+
+        Globals.AutoBuyCrates = false
+        AutoBuyCratesRunning = false
+    end)
+end
 
 local function StartAutoOpenCrates()
     if AutoOpenRunning or not Globals.AutoOpenCrates then return end
@@ -1512,6 +1625,38 @@ local Automation = Window:Tab({Title = "Automation", Icon = "bot"}) do
         Globals.SelectedCrate = choice
         SetSetting("SelectedCrate", choice)
     end
+    })
+
+    Automation:Textbox({
+        Title = "Buy Amount",
+        Desc = "How many crates to buy when Auto Buy is triggered",
+        Placeholder = "10",
+        Value = tostring(Globals.BuyCrateAmount or 10),
+        ClearTextOnFocus = false,
+        Callback = function(text)
+            local n = tonumber(text)
+            if n and n > 0 and n <= 1000 then
+                SetSetting("BuyCrateAmount", math.floor(n))
+            else
+                Window:Notify({
+                    Title = "ADS",
+                    Desc = "Invalid amount (1-1000)!",
+                    Time = 3,
+                    Type = "error"
+                })
+            end
+        end
+    })
+
+    Automation:Toggle({
+        Title = "Auto Buy Crates",
+        Desc = "Buys the selected crate the specified amount (one-shot, then turns off). Select a specific crate (not 'All').",
+        Value = Globals.AutoBuyCrates or false,
+        Callback = function(v)
+            Globals.AutoBuyCrates = v
+            SetSetting("AutoBuyCrates", v)
+            if v then StartAutoBuyCrates() end
+        end
     })
 
     Automation:Section({Title = "Economy & Farming"})
