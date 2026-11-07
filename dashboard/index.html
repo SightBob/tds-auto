@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎮 TDS Live Control Panel</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=Noto+Sans+Thai:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #070b14;
+    --panel: rgba(17, 24, 42, 0.72);
+    --panel-solid: #101828;
+    --border: rgba(120, 140, 190, 0.14);
+    --border-strong: rgba(120, 140, 190, 0.30);
+    --text: #e6ecff;
+    --muted: #7d88a8;
+    --accent: #38e1c8;
+    --accent-2: #8f7dff;
+    --danger: #ff5470;
+    --warn: #ffb340;
+    --ok: #2ee08a;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Noto Sans Thai', system-ui, sans-serif;
+    background:
+      radial-gradient(900px 420px at 88% -8%, rgba(143,125,255,.14), transparent 62%),
+      radial-gradient(700px 380px at -6% 108%, rgba(56,225,200,.10), transparent 60%),
+      var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 18px 16px 26px;
+  }
+  .wrap { width: 100%; max-width: 1320px; margin: 0 auto; }
+
+  .header {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    gap: 14px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  h1 {
+    font-family: 'Chakra Petch', 'Noto Sans Thai', sans-serif;
+    font-size: 23px; font-weight: 700; letter-spacing: .4px;
+  }
+  h1 b {
+    color: var(--accent);
+    text-shadow: 0 0 18px rgba(56,225,200,.45);
+  }
+  .sub { display: block; font-size: 12.5px; color: var(--muted); margin-top: 3px; font-weight: 300; }
+
+  .chips { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 12.5px; font-weight: 600;
+    padding: 8px 15px; border-radius: 10px;
+    border: 1px solid var(--border-strong);
+    background: linear-gradient(160deg, rgba(23,32,54,.9), rgba(15,21,38,.85));
+  }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #55607f; }
+  .dot.live { background: var(--accent); box-shadow: 0 0 0 0 rgba(56,225,200,.6); animation: pulse 1.6s infinite; }
+  .dot.off { background: #55607f; }
+  @keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(56,225,200,.55); }
+    70% { box-shadow: 0 0 0 9px rgba(56,225,200,0); }
+    100% { box-shadow: 0 0 0 0 rgba(56,225,200,0); }
+  }
+
+  .banner {
+    border: 1px solid rgba(255,84,112,.4);
+    background: rgba(255,84,112,.08);
+    color: #ff9fb1; font-size: 13.5px; line-height: 1.6;
+    border-radius: 12px; padding: 13px 16px; margin-bottom: 16px;
+  }
+  .banner.hidden { display: none; }
+
+  .panel {
+    border: 1px solid var(--border-strong);
+    background: var(--panel);
+    border-radius: 16px;
+    backdrop-filter: blur(8px);
+    overflow: hidden;
+    box-shadow: 0 18px 48px rgba(0,0,0,.45);
+  }
+  .table-scroll { overflow-x: auto; }
+
+  table { width: 100%; border-collapse: collapse; table-layout: auto; }
+  thead th {
+    position: sticky; top: 0; z-index: 2;
+    text-align: left;
+    vertical-align: bottom;
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 11px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .6px; color: var(--muted);
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border-strong);
+    background: #0d1424;
+    white-space: normal;
+    cursor: pointer;
+    user-select: none;
+    transition: color .15s;
+  }
+  thead th:hover { color: var(--accent); }
+  thead th.sorted { color: var(--accent); }
+  thead th .dir { font-size: 10px; margin-left: 4px; opacity: .9; }
+  tbody td {
+    padding: 9px 13px; border-bottom: 1px solid rgba(120,140,190,.07);
+    font-size: 13.5px; vertical-align: middle;
+  }
+  tbody tr { transition: background .15s; }
+  tbody tr:hover { background: rgba(56,225,200,.045); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr.offrow { opacity: .5; }
+
+  .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; font-family: 'Chakra Petch', sans-serif; }
+  th.num { text-align: right; }
+
+  .player-cell { display: flex; align-items: center; gap: 11px; max-width: 230px; }
+  .avatar {
+    width: 38px; height: 38px; border-radius: 10px; flex: none;
+    background: linear-gradient(135deg, var(--accent-2), #4d53a8);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 15px; font-weight: 700; color: #fff;
+    border: 1px solid rgba(255,255,255,.12);
+  }
+  .p-name { font-weight: 600; line-height: 1.25; }
+  .p-id { font-size: 11px; color: var(--muted); font-family: ui-monospace, monospace; }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 12.5px; font-weight: 700; color: #06121f;
+    padding: 5px 12px; border-radius: 8px;
+    white-space: nowrap;
+  }
+  .pill em { font-style: normal; font-weight: 500; font-size: 10.5px; opacity: .8; display: block; }
+  .rdot { width: 7px; height: 7px; border-radius: 50%; background: rgba(0,0,0,.4); flex: none; }
+  .rdot.online { background: rgba(255,255,255,.85); box-shadow: 0 0 0 0 rgba(255,255,255,.5); animation: pulse2 1.6s infinite; }
+  @keyframes pulse2 {
+    0% { box-shadow: 0 0 0 0 rgba(255,255,255,.45); }
+    70% { box-shadow: 0 0 0 7px rgba(255,255,255,0); }
+    100% { box-shadow: 0 0 0 0 rgba(255,255,255,0); }
+  }
+
+  tfoot td {
+    padding: 11px 16px; font-size: 12.5px; color: var(--muted);
+    border-top: 1px dashed var(--border-strong);
+    font-family: 'Chakra Petch', sans-serif;
+  }
+
+  .empty { text-align: center; padding: 56px 20px; color: var(--muted); }
+  .empty .big { font-size: 46px; margin-bottom: 10px; }
+  .empty .t { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .empty .s { font-size: 13px; }
+
+  .mono { font-family: ui-monospace, monospace; font-size: 12px; color: var(--muted); }
+  .sector { display: flex; align-items: center; gap: 9px; }
+  .tchips { display: flex; flex-wrap: wrap; gap: 4px; max-width: 150px; }
+  .tchip {
+    background: rgba(143,125,255,.16);
+    border: 1px solid rgba(143,125,255,.42);
+    border-radius: 7px;
+    font-size: 11px; padding: 2.5px 9px; color: #cfc6ff; white-space: nowrap;
+    font-family: 'Chakra Petch', sans-serif;
+  }
+  .tchip.golden {
+    background: rgba(255,179,64,.14);
+    border-color: rgba(255,179,64,.5);
+    color: #ffd48a;
+  }
+  /* ===== ประวัติได้เงิน (หน้า Detail) ===== */
+  .hlist {
+    display: flex; flex-direction: column; gap: 5px;
+    max-height: 220px; overflow-y: auto; padding-right: 4px;
+    font-size: 12.5px;
+  }
+  .hrow {
+    display: flex; gap: 10px; align-items: baseline;
+    padding: 3.5px 9px; border-radius: 7px;
+    background: rgba(120,140,190,.06);
+  }
+  .hrow:nth-child(even) { background: rgba(120,140,190,.03); }
+  .tchip.missing {
+    background: rgba(255,84,112,.10);
+    border-color: rgba(255,84,112,.38);
+    color: #ffb3c0;
+  }
+  .countbadge {
+    display: inline-block;
+    min-width: 34px;
+    text-align: center;
+    font-family: 'Chakra Petch', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    padding: 4px 10px;
+    border-radius: 9px;
+    border: 1px solid rgba(52,211,153,.5);
+    background: rgba(52,211,153,.12);
+    color: #6ee7b7;
+  }
+  .countbadge.red {
+    border-color: rgba(255,84,112,.5);
+    background: rgba(255,84,112,.12);
+    color: #ffb3c0;
+  }
+  .countbadge.dim { opacity: .45; }
+  .lv { font-size: 11px; color: var(--muted); font-weight: 400; }
+  .soldbadge {
+    display: inline-block; font-size: 10px; font-family: 'Chakra Petch', sans-serif;
+    background: rgba(255,179,64,.18); border: 1px solid rgba(255,179,64,.5);
+    color: #ffd48a; border-radius: 6px; padding: 1px 6px; vertical-align: 2px;
+  }
+  .d-input {
+    width: 100%; box-sizing: border-box;
+    background: rgba(255,255,255,.04); border: 1px solid var(--border);
+    border-radius: 9px; padding: 8px 12px; color: var(--text);
+    font-family: 'Chakra Petch', sans-serif; font-size: 13px; outline: none;
+  }
+  .d-input:focus { border-color: var(--accent); }
+
+  /* ===== Detail (คลิกแถวผู้เล่น) ===== */
+  .overlay {
+    position: fixed; inset: 0; z-index: 50;
+    background: rgba(4, 8, 18, .72);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .overlay.hidden { display: none; }
+  .detail-card {
+    width: 100%; max-width: 860px; max-height: 86vh; overflow-y: auto;
+    border: 1px solid var(--border-strong); border-radius: 18px;
+    background: linear-gradient(165deg, #131c30, #0b1120 60%);
+    box-shadow: 0 30px 80px rgba(0,0,0,.6);
+    padding: 24px 26px;
+  }
+  .detail-head { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .detail-head .avatar { width: 52px; height: 52px; font-size: 20px; border-radius: 14px; }
+  .detail-head .p-name { font-size: 18px; }
+  .d-close {
+    margin-left: auto; flex: none;
+    font-family: 'Chakra Petch', sans-serif;
+    border: 1px solid var(--border-strong); background: rgba(255,255,255,.05);
+    color: var(--muted); border-radius: 9px; padding: 7px 13px; font-size: 12.5px;
+    cursor: pointer; transition: color .15s, border-color .15s;
+  }
+  .d-close:hover { color: var(--danger); border-color: var(--danger); }
+  .d-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 10px; margin-bottom: 20px;
+  }
+  .d-stat {
+    border: 1px solid var(--border); border-radius: 12px;
+    background: rgba(255,255,255,.03); padding: 10px 14px;
+  }
+  .d-stat .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .8px; font-family: 'Chakra Petch', sans-serif; }
+  .d-stat .v { font-size: 16px; font-weight: 700; font-family: 'Chakra Petch', sans-serif; margin-top: 3px; }
+  .d-section { margin-top: 16px; }
+  .d-section h3 {
+    font-family: 'Chakra Petch', sans-serif;
+    font-size: 13px; text-transform: uppercase; letter-spacing: 1.2px;
+    color: var(--muted); margin-bottom: 8px;
+  }
+  .d-section .tchips { max-width: none; }
+  .d-row { display: grid; grid-template-columns: 160px 1fr; gap: 10px; margin-top: 8px; font-size: 13px; align-items: baseline; }
+  .d-row .k { color: var(--muted); font-family: 'Chakra Petch', sans-serif; font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div>
+      <h1><b>TDS</b> LIVE CONTROL PANEL</h1>
+      <span class="sub">ข้อมูลสดจาก Supabase Realtime · 1 แถวต่อ 1 ผู้เล่น · คลิกหัวตารางเพื่อเรียงลำดับ</span>
+    </div>
+    <div class="chips">
+      <div class="chip"><span class="dot" id="liveDot"></span><span id="liveText">Connecting…</span></div>
+      <div class="chip">👥 <span id="countOnline">0</span> ออนไลน์ / <span id="countTotal">0</span> คน</div>
+      <div class="chip">💰 Coin รวม <span id="sumCoins">0</span></div>
+      <div class="chip">💵 ขายแล้วรวม <span id="sumSold">—</span></div>
+      <div class="chip"><input id="alertEmail" placeholder="อีเมลแจ้งเตือน (ว่าง=ปิด)" style="width:160px;background:transparent;border:none;color:var(--text);font-family:inherit;font-size:12px;outline:none"></div>
+    </div>
+  </div>
+
+  <div class="banner hidden" id="setupBanner"></div>
+
+  <div class="panel">
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr id="sortHead">
+            <th data-sort="name">ผู้เล่น</th>
+            <th data-sort="status">สถานะ</th>
+            <th data-sort="coins" class="num">🪙 Coins</th>
+            <th data-sort="gems" class="num">💎 Gems</th>
+            <th data-sort="level" class="num">Level</th>
+            <th data-sort="wins" class="num">Wins</th>
+            <th data-sort="session" class="num">⏱ เวลาเล่นรวม</th>
+            <th data-sort="equippedCount">ชุดติดตัว</th>
+            <th data-sort="ownedCount" class="num">ซื้อแล้ว</th>
+            <th data-sort="missingCount" class="num">ยังไม่มี</th>
+            <th data-sort="place">เซิร์ฟเวอร์</th>
+            <th data-sort="updated" class="sorted">อัปเดตล่าสุด <span class="dir">▼</span></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+        <tfoot>
+          <tr><td colspan="12" id="connInfo">กำลังเชื่อมต่อ Supabase…</td></tr>
+        </tfoot>
+      </table>
+    </div>
+    <div class="empty hidden" id="emptyState">
+      <div class="big">📭</div>
+      <div class="t">ยังไม่มีข้อมูล</div>
+      <div class="s">รัน <b>script.lua</b> ในเกม Roblox — ข้อมูลจะขึ้นที่นี่ภายใน ~3 วินาที</div>
+    </div>
+  </div>
+
+  <div class="overlay hidden" id="detailOverlay">
+    <div class="detail-card" id="detailCard"></div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://ajcqqfrvumyxupufnesd.supabase.co";
+  const SUPABASE_ANON_KEY = "sb_publishable_k2UQNK0MJsJP0roEPFH0Qw_7wOe-VhG";
+
+  // ===== แจ้งเตือนอีเมลเมื่อแอคเคานต์หยุดส่งข้อมูล — FormSubmit ฟรี (ครั้งแรกต้องกดลิงก์ยืนยันในเมล) =====
+  const ALERT_STALE_MS = 3 * 60 * 1000;
+  const alertLastSent = {};
+  function sendAlert(rowId, minutesStale) {
+    const email = (localStorage.getItem("tds_alert_email") || "").trim();
+    if (!email) return;
+    if (alertLastSent[rowId] && Date.now() - alertLastSent[rowId] < 30 * 60 * 1000) return;
+    alertLastSent[rowId] = Date.now();
+    const who = accountLabel(rowId) ? (accountLabel(rowId) + " (id " + rowId + ")") : ("id " + rowId);
+    fetch("https://formsubmit.co/ajax/" + encodeURIComponent(email), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        _subject: "🚨 TDS Farm: " + who + " หยุดส่งข้อมูล",
+        message: who + " ไม่ส่งข้อมูลมาแล้ว ~" + minutesStale + " นาที — เกมน่าจะปิด/ค้าง ให้เข้าไปตรวจ cloudphone จอนั้น",
+        _template: "table",
+      }),
+    }).catch(() => {});
+  }
+  function watchAlerts() {
+    const now = Date.now();
+    rows.forEach((row, id) => {
+      const stale = now - new Date(row.updated_at).getTime();
+      if (stale > ALERT_STALE_MS && stale < 6 * 60 * 60 * 1000) {
+        sendAlert(id, Math.round(stale / 60000));
+      }
+    });
+  }
+  setInterval(watchAlerts, 60 * 1000);
+
+  // ===== ชื่อเล่น/สถานะขายของ account (เก็บในเครื่องเปิด dashboard) =====
+  const LS_KEY = "tds_dash_labels";
+  function labelsAll() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch { return {}; }
+  }
+  function saveLabels(all) {
+    localStorage.setItem(LS_KEY, JSON.stringify(all));
+  }
+  function accountLabel(id) { return labelsAll()[id]?.name || ""; }
+  function accountSold(id) {
+    const v = parseFloat(labelsAll()[id]?.sold || "");
+    return isNaN(v) ? null : v;
+  }
+  function fmtBath(n) {
+    return n == null ? "—" : "฿" + n.toLocaleString("th-TH");
+  }
+
+  const OFFLINE_AFTER_MS = 90 * 1000;
+  const POLL_MS = 5000;
+
+  const STATUS_STYLE = {
+    Playing:    { bg: "#2ee08a", label: "กำลังเล่น" },
+    GameOver:   { bg: "#ff5470", label: "Game Over", fg: "#180a0e" },
+    Recovering: { bg: "#ffb340", label: "กำลังกู้คืน" },
+    Loading:    { bg: "#4d8dff", label: "กำลังโหลด" },
+    Lobby:      { bg: "#5a657f", label: "Lobby" },
+  };
+
+  // ====== การเรียงลำดับ (คลิกหัวตารางได้ทุกคอลัมน์) ======
+  const DEFAULT_SORT = { key: "updated", dir: "desc" };
+  let sortKey = DEFAULT_SORT.key;
+  let sortDir = DEFAULT_SORT.dir;
+
+  function sortValue(row, key) {
+    switch (key) {
+      case "name":   return (row.display_name || row.username || "").toLowerCase();
+      case "status": return row.status || "";
+      case "session": return row.session_seconds ?? 0;
+      case "equippedCount": return arrayLen(row.equipped_towers);
+      case "ownedCount": return arrayLen(row.owned_towers);
+      case "missingCount": return arrayLen(row.missing_towers);
+      case "place": return row.place_id ?? 0;
+      case "updated": return new Date(row.updated_at).getTime();
+      default: return row[key] ?? (typeof defaultFor(key) === "number" ? 0 : "");
+    }
+  }
+  function defaultFor(key) {
+    return (["coins","gems","level","wins"].includes(key)) ? 0 : "";
+  }
+  function arrayLen(raw) {
+    try { return Array.isArray(JSON.parse(String(raw))) ? 1 : 0; } catch { return 0; }
+  }
+
+  function applySortHead() {
+    document.querySelectorAll("#sortHead th").forEach((th) => {
+      th.classList.toggle("sorted", th.dataset.sort === sortKey);
+      const dirEl = th.querySelector(".dir");
+      if (dirEl) dirEl.remove();
+      if (th.dataset.sort === sortKey) {
+        const span = document.createElement("span");
+        span.className = "dir";
+        span.textContent = sortDir === "asc" ? "▲" : "▼";
+        th.appendChild(span);
+      }
+    });
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const rows = new Map();
+  let lastRealtimeAt = null;
+  let realtimeOk = false;
+
+  function fmtDuration(sec) {
+    sec = Math.max(0, Math.floor(sec || 0));
+    const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;
+    return `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+  }
+  function isOnline(row) {
+    return row && (Date.now() - new Date(row.updated_at).getTime()) < OFFLINE_AFTER_MS;
+  }
+  function esc(t) {
+    const d = document.createElement("div");
+    d.textContent = t == null ? "" : String(t);
+    return d.innerHTML;
+  }
+  function relTime(iso) {
+    const s = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
+    if (s < 5) return "เมื่อสักครู่";
+    if (s < 60) return s + " วิที่แล้ว";
+    if (s < 3600) return Math.floor(s / 60) + " นาทีที่แล้ว";
+    return Math.floor(s / 3600) + " ชม.ที่แล้ว";
+  }
+  function fmtClock(iso) {
+    const d = new Date(iso);
+    return d.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" });
+  }
+  function playerCell(row) {
+    const initial = (accountLabel(row.id) || row.display_name || row.username || "?").trim().charAt(0).toUpperCase();
+    const sold = accountSold(row.id);
+    return `
+      <div class="player-cell">
+        <div class="avatar">${esc(initial)}</div>
+        <div>
+          <div class="p-name">${esc(accountLabel(row.id) || row.display_name) || "—"}${sold ? ` <span class="soldbadge">ขายแล้ว ${esc(fmtBath(sold))}</span>` : ""}</div>
+          <div class="p-id">ID ${esc(row.id ?? "—")} · @${esc(row.username)}</div>
+        </div>
+      </div>`;
+  }
+  function statusCell(row) {
+    const style = STATUS_STYLE[row.status] || { bg: "#5a657f", label: row.status || "—" };
+    const online = isOnline(row);
+    const diff = row.difficulty ? `<em>โหมด ${esc(row.difficulty)}</em>` : "";
+    const label = online ? style.label : `หลุดตั้งแต่ ${fmtClock(row.updated_at)} (${relTime(row.updated_at)})`;
+    return `<span class="pill" style="background:${style.bg};${online ? "" : "opacity:.5"}">
+              <span class="rdot ${online ? "online" : ""}"></span>
+              <span>${diff}${esc(label)}</span>
+            </span>`;
+  }
+  function sessionCell(row) {
+    let sec = row.session_seconds ?? 0;
+    if (isOnline(row)) {
+      sec += (Date.now() - new Date(row.updated_at).getTime()) / 1000;
+    }
+    return fmtDuration(sec);
+  }
+  function serverCell(row) {
+    return `<div class="sector">
+              <div>
+                <div style="font-weight:600">Place ${esc(row.place_id ?? "—")}</div>
+                <div class="mono">${row.job_id ? "Job " + esc(String(row.job_id).slice(0, 8)) + "…" : ""}</div>
+              </div>
+            </div>`;
+  }
+  function ownedCountCell(raw) {
+    const n = arrayLenString(raw);
+    if (n === "0") return `<span class="mono">—</span>`;
+    return `<span class="countbadge">${esc(n)}</span>`;
+  }
+
+  function towersHtml(raw, emptyText, chipClass) {
+    if (!raw) return `<span class="mono">—</span>`;
+    try {
+      const strip = String(raw).replace(/[\x00-\x1f]/g, "");
+      const arr = JSON.parse(strip);
+      if (Array.isArray(arr) && arr.length > 0) {
+        return `<div class="tchips">${arr.map((towerName) => {
+          const cls = [chipClass || "", towerName.includes("⭐") ? "golden" : ""].filter(Boolean).join(" ");
+          return `<span class="tchip ${cls}">${esc(towerName)}</span>`;
+        }).join("")}</div>`;
+      }
+      return `<span class="mono">${esc(emptyText || "ว่าง")}</span>`;
+    } catch {
+      return `<span class="mono">${esc(String(raw).slice(0, 60))}</span>`;
+    }
+  }
+
+  function render() {
+    let list = [...rows.values()];
+    list.sort((a, b) => {
+      const va = sortValue(a, sortKey), vb = sortValue(b, sortKey);
+      let cmp;
+      if (typeof va === "number" && typeof vb === "number") cmp = va - vb;
+      else cmp = String(va).localeCompare(String(vb), "th");
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
+    let online = 0;
+    list.forEach((r) => { if (isOnline(r)) online++; });
+    let sumCoins = 0, sumSold = 0;
+    list.forEach((r) => {
+      if (r.coins != null && isOnline(r)) sumCoins += Number(r.coins);
+      const s = accountSold(r.id);
+      if (s) sumSold += s;
+    });
+    $("sumCoins").textContent = sumCoins.toLocaleString("th-TH");
+    $("sumSold").textContent = sumSold > 0 ? fmtBath(sumSold) : "—";
+    $("countOnline").textContent = online;
+    $("countTotal").textContent = list.length;
+    $("liveDot").className = "dot " + (online > 0 ? "live" : "off");
+    $("liveText").textContent = online > 0 ? "LIVE" : (list.length > 0 ? "IDLE" : "NO DATA");
+    $("emptyState").classList.toggle("hidden", list.length > 0);
+
+    if (list.length > 0) {
+      $("tbody").innerHTML = list.map((row) => `
+      <tr class="${isOnline(row) ? "" : "offrow"}" data-player-id="${esc(row.id)}" style="cursor:pointer" title="คลิกเพื่อดูรายละเอียด">
+        <td>${playerCell(row)}</td>
+        <td>${statusCell(row)}</td>
+        <td class="num">${row.coins != null ? Number(row.coins).toLocaleString("th-TH") : "—"}</td>
+        <td class="num">${row.gems != null ? Number(row.gems).toLocaleString("th-TH") : "—"}</td>
+        <td class="num">${row.level != null ? esc(row.level) : "—"}</td>
+        <td class="num">${row.wins != null ? esc(row.wins) : "—"}</td>
+        <td class="num">${sessionCell(row)}</td>
+        <td>${towersHtml(row.equipped_towers, "ไม่มีชุด")}</td>
+        <td class="num">${ownedCountCell(row.owned_towers)}</td>
+        <td class="num">${arrayLenString(row.missing_towers) === "0" ? `<span class="mono">—</span>` : `<span class="countbadge red">${esc(arrayLenString(row.missing_towers))}</span>`}</td>
+        <td>${serverCell(row)}</td>
+        <td class="mono">${relTime(row.updated_at)}</td>
+      </tr>`).join("");
+
+      $("tbody").querySelectorAll("tr[data-player-id]").forEach((tr) => {
+        tr.addEventListener("click", () => openDetail(tr.dataset.playerId));
+      });
+    } else {
+      $("tbody").innerHTML = "";
+    }
+
+    if (openDetailId) {
+      const openRow = rows.get(openDetailId);
+      if (openRow) {
+        // อย่า re-paint ตอน focus อยู่ที่ช่องกรอกใน modal — กัน focus หลุด
+        const ae = document.activeElement;
+        const typingInModal = ae && (ae.id === "accLabel" || ae.id === "accSold");
+        if (!typingInModal) {
+          loadHistory(openDetailId); // รีเฟรชประวัติอัตโนมัติ (throttle 30 วิ ข้างใน)
+          renderDetailCard(openRow);
+        }
+      }
+    }
+  }
+
+  // ====== หน้า Detail ต่อผู้เล่น (คลิกแถวเพื่อเปิด) ======
+  let openDetailId = null;
+
+  function renderDetailCard(row) {
+    const stat = (k, v) => `<div class="d-stat"><div class="k">${k}</div><div class="v">${v || "—"}</div></div>`;
+    $("detailCard").innerHTML = `
+      <div class="detail-head">
+        ${playerCell(row)}
+        <button class="d-close" id="detailClose">ปิด (Esc)</button>
+      </div>
+      <div class="d-grid">
+        ${stat("สถานะ", !isOnline(row) ? `หลุด · ตั้งแต่ ${fmtClock(row.updated_at)} (${esc(relTime(row.updated_at))})` : (STATUS_STYLE[row.status] ? esc(STATUS_STYLE[row.status].label) : esc(row.status)))}
+        ${stat("🪙 Coins", row.coins != null ? Number(row.coins).toLocaleString("th-TH") : "")}
+        ${stat("💎 Gems", row.gems != null ? Number(row.gems).toLocaleString("th-TH") : "")}
+        ${stat("Level", row.level ?? "")}
+        ${stat("Wins", row.wins ?? "")}
+        ${stat("⏱ เวลาสะสม", fmtDuration((row.session_seconds ?? 0)))}
+        ${stat("โหมด", row.difficulty ? esc(row.difficulty) : "")}
+        ${stat("อัปเดต", relTime(row.updated_at))}
+      </div>
+      <div class="d-row">
+        <span class="k">Job / Place</span>
+        <span class="mono">Place ${esc(row.place_id ?? "—")}${row.job_id ? " · Job " + esc(row.job_id) : ""}</span>
+      </div>
+      <div class="d-section">
+        <h3>ชุดติดตัว (Equipped)</h3>
+        ${towersHtml(row.equipped_towers, "ไม่มีชุด")}
+      </div>
+      <div class="d-section">
+        <h3>Tower ที่ซื้อแล้ว (${arrayLenString(row.owned_towers)})</h3>
+        ${towersHtml(row.owned_towers, "ไม่มีในระบบรู้จัก")}
+      </div>
+      <div class=\"d-section\">
+        <h3>ยังไม่ได้ซื้อ (${arrayLenString(row.missing_towers)})</h3>
+        ${towersHtml(row.missing_towers, "ซื้อครบทุกตัวในเกมแล้ว 🎉", "missing")}
+      </div>
+      <div class="d-section">
+        <h3>💰 ประวัติได้เงิน ${historySummary(id)}</h3>
+        ${historyHtml(id)}
+      </div>
+      <div class="d-section">
+        <h3>การจัดการ Account</h3>
+        <div class="d-grid" style="min-width:0">
+          <div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">ชื่อเล่นสำหรับจอนี้ (แสดงในตาราง)</div>
+            <input class="d-input" id="accLabel" value="${esc(accountLabel(row.id))}" placeholder="เช่น จอ1 ฟาร์มหลัก" maxlength="40">
+          </div>
+          <div>
+            <div style="font-size:11px;color:var(--muted);margin-bottom:4px">รหัสขายแล้ว — ราคา (บาท)</div>
+            <input class="d-input" id="accSold" value="${esc(labelsAll()[row.id]?.sold || "")}" placeholder="เช่น 4500" inputmode="numeric">
+          </div>
+        </div>
+      </div>`;
+
+    $("detailClose").addEventListener("click", closeDetail);
+
+    $("accLabel").addEventListener("input", (e) => {
+      const all = labelsAll();
+      all[row.id] = Object.assign({}, all[row.id], { name: e.target.value.trim() });
+      saveLabels(all);
+      render(); // ให้ตารางเปลี่ยนชื่อทันที (modal จะถูกข้ามเพราะ focus อยู่ที่ช่องนี้)
+    });
+    $("accSold").addEventListener("input", (e) => {
+      const all = labelsAll();
+      all[row.id] = Object.assign({}, all[row.id], { sold: e.target.value.trim() });
+      saveLabels(all);
+      render();
+    });
+  }
+
+  function arrayLenString(raw) {
+    if (!raw) return "0";
+    try {
+      const arr = JSON.parse(String(raw).replace(/[\x00-\x1f]/g, ""));
+      return Array.isArray(arr) ? String(arr.length) : "0";
+    } catch { return "0"; }
+  }
+
+  // ===== ประวัติได้เงิน (ตาราง coin_history บน Supabase) =====
+  const historyCache = new Map();   // playerId -> array of {delta, coins, created_at} (ล่าสุดก่อน)
+  const historyLoaded = new Set();  // playerId ที่โหลดแล้ว
+  const historyLastFetch = new Map();
+
+  async function loadHistory(id, force) {
+    const last = historyLastFetch.get(id) || 0;
+    if (!force && Date.now() - last < 30 * 1000) return; // throttle 30 วิ
+    historyLoaded.add(id);
+    historyLastFetch.set(id, Date.now());
+    try {
+      const { data } = await sb.from("coin_history")
+        .select("delta, coins, created_at")
+        .eq("player_id", id)
+        .order("id", { ascending: false })
+        .limit(60);
+      historyCache.set(id, Array.isArray(data) ? data : []);
+      if (openDetailId === id) renderDetailCard(rows.get(id));
+    } catch { /* โหลดไม่ได้ก็ข้ามไป */ }
+  }
+  function historySummary(id) {
+    const list = historyCache.get(id) || [];
+    if (!list.length) return "";
+    const today = new Date().toDateString();
+    let todaySum = 0;
+    list.forEach((h) => {
+      if (new Date(h.created_at).toDateString() === today) todaySum += Number(h.delta || 0);
+    });
+    return `— วันนี้ +${todaySum.toLocaleString("th-TH")} 🪙`;
+  }
+  function historyHtml(id) {
+    const list = historyCache.get(id) || [];
+    if (!historyLoaded.has(id)) return `<span class="mono">กำลังโหลดประวัติ…</span>`;
+    if (!list.length) return `<span class="mono">ยังไม่มีประวัติ — เริ่มเก็บข้อมูลหลังคอยน์ของจอนี้เพิ่มขึ้นเป็นครั้งแรก</span>`;
+    return `<div class="hlist">${list.map((h) => {
+      const t = new Date(h.created_at);
+      const time = t.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" }) +
+        ` <span style="color:var(--muted)">${t.toLocaleDateString("th-TH", { day: "2-digit", month: "short" })}</span>`;
+      return `<div class="hrow">
+          <span class="mono" style="color:var(--muted)">${time}</span>
+          <span style="color:#2ee08a;font-weight:600">+${Number(h.delta).toLocaleString("th-TH")}</span>
+          <span class="mono">= ${Number(h.coins).toLocaleString("th-TH")} 🪙</span>
+        </div>`;
+    }).join("")}</div>`;
+  }
+
+  function openDetail(id) {
+    const row = rows.get(id);
+    if (!row) return;
+    openDetailId = id;
+    loadHistory(id, true);
+    renderDetailCard(row);
+    $("detailOverlay").classList.remove("hidden");
+  }
+
+  function closeDetail() {
+    openDetailId = null;
+    $("detailOverlay").classList.add("hidden");
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeDetail();
+  });
+  $("detailOverlay").addEventListener("click", (e) => {
+    if (e.target === e.currentTarget) closeDetail();
+  });
+
+  async function main() {
+    const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const emailInput = $("alertEmail");
+    emailInput.value = localStorage.getItem("tds_alert_email") || "";
+    emailInput.addEventListener("input", (e) => {
+      localStorage.setItem("tds_alert_email", e.target.value.trim());
+    });
+
+    async function load() {
+      const { data, error } = await sb.from("reports").select("*").order("updated_at", { ascending: false });
+      if (error) {
+        showBanner("❌ ดึงข้อมูลไม่สำเร็จ: " + error.message);
+        return;
+      }
+      hideBanner();
+      rows.clear(); // rebuild ทุกรอบ — แถวที่ถูกลบจาก DB จะหายออกจากตารางเอง
+      data.forEach((row) => {
+        if (row.id === "debug" || row.status === "Debug" || row.status === "Debug") return;
+        rows.set(row.id, row);
+      });
+      render();
+    }
+
+    sb.channel("reports-live")
+      .on("postgres_changes", { event: "*", schema: "public", table: "reports" },
+        (payload) => {
+          lastRealtimeAt = new Date();
+          realtimeOk = true;
+          if (payload.new && payload.new.id !== "debug" && payload.new.status !== "Debug") {
+            rows.set(payload.new.id, payload.new);
+            render();
+          }
+        })
+      .subscribe((s) => {
+        realtimeOk = (s === "SUBSCRIBED");
+      });
+
+    setInterval(load, POLL_MS);
+    setInterval(render, 1000);
+
+    setInterval(() => {
+      const parts = [];
+      parts.push(realtimeOk ? "🟢 Realtime เชื่อมต่ออยู่" : "🟡 Realtime ไม่ตอบสนอง (ใช้โหมด polling 5 วิ)");
+      if (lastRealtimeAt) {
+        parts.push("· ข้อมูลสุดท้ายเด้งเมื่อ " + relTime(lastRealtimeAt.toISOString()));
+      }
+      $("connInfo").textContent = parts.join("  ");
+    }, 1000);
+
+    applySortHead();
+
+    document.querySelectorAll("#sortHead th").forEach((th) => {
+      th.addEventListener("click", () => {
+        const key = th.dataset.sort;
+        if (sortKey === key) {
+          sortDir = sortDir === "asc" ? "desc" : "asc";
+        } else {
+          sortKey = key;
+          // คอลัมน์ตัวเลข/เวลา เริ่มแบบมาก->น้อย, ตัวอักษร เริ่ม A->Z (ใช้งานง่าย)
+          sortDir = (key === "name" || key === "status") ? "asc" : "desc";
+        }
+        applySortHead();
+        render();
+      });
+    });
+
+    await load();
+  }
+
+  function showBanner(msg) {
+    const b = $("setupBanner");
+    b.textContent = msg;
+    b.classList.remove("hidden");
+  }
+  function hideBanner() {
+    $("setupBanner").classList.add("hidden");
+  }
+
+  main();
+</script>
+</body>
+</html>
